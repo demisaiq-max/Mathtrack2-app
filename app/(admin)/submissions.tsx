@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   RefreshControl,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, Filter, Eye, Download, Edit, X, Save, FileText, ChevronDown, RefreshCw } from 'lucide-react-native';
@@ -153,7 +154,6 @@ export default function SubmissionsScreen() {
         Alert.alert('Success', `${submission.fileName} download started`);
       } else {
         // Mobile - open in browser or external app
-        const { Linking } = require('react-native');
         const supported = await Linking.canOpenURL(submission.fileUrl);
         
         if (supported) {
