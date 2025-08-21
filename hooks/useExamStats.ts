@@ -187,12 +187,12 @@ export function useExamStats() {
         // Apply the same upcoming logic as useExams
         const now = new Date();
         const upcomingFiltered = activeExams.filter((exam: any) => {
-          // Check if user has already completed this exam
-          const hasSubmission = submissions?.some((sub: any) => 
-            sub.exam_id === exam.id && sub.status === 'Graded'
+          // Check if user has already completed this exam (has a submission with a score)
+          const hasCompletedSubmission = submissions?.some((sub: any) => 
+            sub.exam_id === exam.id && sub.score_percent !== null && sub.submitted_at !== null
           );
           
-          if (hasSubmission) {
+          if (hasCompletedSubmission) {
             console.log(`[ExamStats] Exam ${exam.id} already completed by user`);
             return false; // Don't show completed exams in upcoming
           }
