@@ -151,6 +151,28 @@ export function useExamStats() {
       }
 
       // Fetch upcoming exams
+      console.log('[ExamStats] Fetching upcoming exams for grade level:', gradeLevel);
+      console.log('[ExamStats] Current date for comparison:', new Date().toISOString());
+      
+      // First, let's check all scheduled exams for this grade level to debug
+      const { data: allScheduledExams } = await supabase
+        .from('exams')
+        .select(`
+          id,
+          title,
+          scheduled_start,
+          status,
+          subjects (
+            name
+          )
+        `)
+        .eq('grade_level', gradeLevel)
+        .not('scheduled_start', 'is', null)
+        .order('scheduled_start', { ascending: true });
+      
+      console.log('[ExamStats] All scheduled exams for grade', gradeLevel, ':', allScheduledExams);
+      
+      // For now, let's show all scheduled exams regardless of date to debug the issue
       const { data: upcomingData, error: upcomingError } = await supabase
         .from('exams')
         .select(`
@@ -164,23 +186,34 @@ export function useExamStats() {
         .eq('grade_level', gradeLevel)
         .eq('status', 'Active')
         .not('scheduled_start', 'is', null)
-        .gte('scheduled_start', new Date().toISOString())
         .order('scheduled_start', { ascending: true })
         .limit(10);
 
       if (upcomingError) {
         console.error('[ExamStats] Error fetching upcoming exams:', upcomingError);
+        console.error('[ExamStats] Upcoming exams error details:', JSON.stringify(upcomingError, null, 2));
       } else {
-        console.log('[ExamStats] Fetched upcoming exams:', upcomingData);
+        console.log('[ExamStats] Fetched upcoming exams raw data:', upcomingData);
+        console.log('[ExamStats] Number of upcoming exams found:', upcomingData?.length || 0);
         
-        const upcoming: UpcomingExam[] = (upcomingData || []).map((exam: any) => ({
-          id: exam.id,
-          title: exam.title,
-          subject: exam.subjects?.name || 'Unknown Subject',
-          scheduledStart: new Date(exam.scheduled_start).toLocaleDateString(),
-          icon: getSubjectIcon(exam.subjects?.name || ''),
-        }));
+        const upcoming: UpcomingExam[] = (upcomingData || []).map((exam: any) => {
+          console.log('[ExamStats] Processing upcoming exam:', {
+            id: exam.id,
+            title: exam.title,
+            scheduled_start: exam.scheduled_start,
+            subject: exam.subjects?.name
+          });
+          
+          return {
+            id: exam.id,
+            title: exam.title,
+            subject: exam.subjects?.name || 'Unknown Subject',
+            scheduledStart: new Date(exam.scheduled_start).toLocaleDateString(),
+            icon: getSubjectIcon(exam.subjects?.name || ''),
+          };
+        });
 
+        console.log('[ExamStats] Processed upcoming exams:', upcoming);
         setUpcomingExams(upcoming);
       }
 
