@@ -376,12 +376,8 @@ export default function TakeExamScreen() {
 
               console.log('[TakeExam] Exam submitted successfully:', finalSubmission);
 
-              // Navigate to results
-              const score = finalSubmission.earned_points || 0;
-              const maxScore = finalSubmission.total_points || 0;
-              const percentage = finalSubmission.score_percent || 0;
-
-              router.replace(`/exam-results?score=${score}&maxScore=${maxScore}&percentage=${percentage}&examTitle=${encodeURIComponent(examData.title)}`);
+              // Navigate to answer sheet upload
+              router.replace(`/answer-sheet-upload?submissionId=${submissionId}&examTitle=${encodeURIComponent(examData.title)}`);
 
             } catch (err) {
               console.error('[TakeExam] Error submitting exam:', err);
