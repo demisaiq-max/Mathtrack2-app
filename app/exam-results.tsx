@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
@@ -16,15 +17,180 @@ import {
   BookOpen,
   Home,
 } from 'lucide-react-native';
+import { supabase } from '@/config/supabase';
+import { useAuth } from '@/hooks/auth-context';
+
+interface ExamResultData {
+  submissionId: number;
+  examId: number;
+  examTitle: string;
+  subjectName: string;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  questionsAnswered: number;
+  totalQuestions: number;
+  timeSpent: number; // in minutes
+  passingScore: number;
+}
 
 export default function ExamResultsScreen() {
   const params = useLocalSearchParams();
-  const score = parseInt(params.score as string) || 0;
-  const maxScore = parseInt(params.maxScore as string) || 100;
-  const percentage = parseInt(params.percentage as string) || 0;
+  const { user } = useAuth();
+  const [resultData, setResultData] = useState<ExamResultData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const isPassed = percentage >= 70;
+  // Get params - try both direct params and submissionId approach
+  const submissionId = params.submissionId as string;
+  const directScore = params.score ? parseInt(params.score as string) : null;
+  const directMaxScore = params.maxScore ? parseInt(params.maxScore as string) : null;
+  const directPercentage = params.percentage ? parseInt(params.percentage as string) : null;
+  const directExamTitle = params.examTitle as string;
+
+  useEffect(() => {
+    const fetchResultData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // If we have direct params, use them (legacy support)
+        if (directScore !== null && directMaxScore !== null && directPercentage !== null) {
+          console.log('[ExamResults] Using direct params:', { directScore, directMaxScore, directPercentage });
+          setResultData({
+            submissionId: submissionId ? parseInt(submissionId) : 0,
+            examId: 0, // Unknown for legacy params
+            examTitle: directExamTitle || 'Exam',
+            subjectName: 'Unknown Subject',
+            score: directScore,
+            maxScore: directMaxScore,
+            percentage: directPercentage,
+            questionsAnswered: Math.round((directScore / directMaxScore) * 5), // Estimate
+            totalQuestions: 5, // Default estimate
+            timeSpent: 45, // Default estimate
+            passingScore: 70
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        // Otherwise fetch from database using submissionId
+        if (!submissionId || !user?.id) {
+          throw new Error('Missing submission ID or user authentication');
+        }
+
+        console.log('[ExamResults] Fetching submission data for ID:', submissionId);
+
+        // Fetch submission with exam and question data
+        const { data: submission, error: submissionError } = await supabase
+          .from('exam_submissions')
+          .select(`
+            id,
+            score_percent,
+            earned_points,
+            total_points,
+            submitted_at,
+            exams!inner(
+              id,
+              title,
+              duration_minutes,
+              passing_score,
+              subjects!inner(name),
+              exam_questions(id, points)
+            ),
+            submission_answers(id, question_id, is_correct, earned_points)
+          `)
+          .eq('id', submissionId)
+          .eq('student_id', user.id)
+          .single();
+
+        if (submissionError) {
+          console.error('[ExamResults] Error fetching submission:', submissionError);
+          throw submissionError;
+        }
+
+        if (!submission) {
+          throw new Error('Submission not found');
+        }
+
+        console.log('[ExamResults] Submission data:', submission);
+
+        const exam = Array.isArray(submission.exams) ? submission.exams[0] : submission.exams;
+        if (!exam) {
+          throw new Error('Exam data not found');
+        }
+        
+        const totalQuestions = exam.exam_questions?.length || 0;
+        const questionsAnswered = submission.submission_answers?.length || 0;
+        
+        // Calculate time spent (estimate based on duration)
+        const timeSpent = exam.duration_minutes || 60;
+
+        const resultData: ExamResultData = {
+          submissionId: submission.id,
+          examId: exam.id,
+          examTitle: exam.title,
+          subjectName: (() => {
+            if (Array.isArray(exam.subjects)) {
+              return exam.subjects[0]?.name || 'Unknown Subject';
+            } else if (exam.subjects && typeof exam.subjects === 'object' && 'name' in exam.subjects) {
+              return (exam.subjects as any).name || 'Unknown Subject';
+            }
+            return 'Unknown Subject';
+          })(),
+          score: submission.earned_points || 0,
+          maxScore: submission.total_points || 0,
+          percentage: submission.score_percent || 0,
+          questionsAnswered,
+          totalQuestions,
+          timeSpent,
+          passingScore: exam.passing_score || 70
+        };
+
+        console.log('[ExamResults] Processed result data:', resultData);
+        setResultData(resultData);
+
+      } catch (err) {
+        console.error('[ExamResults] Error fetching result data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load results');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchResultData();
+  }, [submissionId, user?.id, directScore, directMaxScore, directPercentage, directExamTitle]);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Stack.Screen options={{ title: 'Loading Results...' }} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4F46E5" />
+          <Text style={styles.loadingText}>Loading exam results...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !resultData) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Stack.Screen options={{ title: 'Error' }} />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error || 'Failed to load results'}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => router.replace('/(tabs)/home')}>
+            <Text style={styles.retryButtonText}>Back to Home</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const { score, maxScore, percentage, questionsAnswered, timeSpent, subjectName, passingScore } = resultData;
+  const isPassed = percentage >= passingScore;
   const grade = getGrade(percentage);
+  const correctAnswers = Math.round((score / maxScore) * questionsAnswered);
 
   function getGrade(percent: number): string {
     if (percent >= 90) return 'A';
@@ -127,7 +293,7 @@ export default function ExamResultsScreen() {
             <View style={styles.performanceDetails}>
               <Text style={styles.performanceLabel}>Correct Answers</Text>
               <Text style={styles.performanceValue}>
-                {Math.round((score / maxScore) * 3)} out of 3 questions
+                {correctAnswers} out of {questionsAnswered} questions
               </Text>
             </View>
           </View>
@@ -138,7 +304,7 @@ export default function ExamResultsScreen() {
             </View>
             <View style={styles.performanceDetails}>
               <Text style={styles.performanceLabel}>Time Spent</Text>
-              <Text style={styles.performanceValue}>45 minutes</Text>
+              <Text style={styles.performanceValue}>{timeSpent} minutes</Text>
             </View>
           </View>
           
@@ -148,7 +314,7 @@ export default function ExamResultsScreen() {
             </View>
             <View style={styles.performanceDetails}>
               <Text style={styles.performanceLabel}>Subject</Text>
-              <Text style={styles.performanceValue}>Mathematics - Algebra II</Text>
+              <Text style={styles.performanceValue}>{subjectName}</Text>
             </View>
           </View>
         </View>
@@ -209,10 +375,10 @@ export default function ExamResultsScreen() {
           <Text style={styles.homeButtonText}>Back to Home</Text>
         </TouchableOpacity>
         
-        {!isPassed && (
+        {!isPassed && resultData.examId > 0 && (
           <TouchableOpacity
             style={styles.retakeButton}
-            onPress={() => router.back()}
+            onPress={() => router.push(`/take-exam?examId=${resultData.examId}`)}
           >
             <Text style={styles.retakeButtonText}>Retake Exam</Text>
           </TouchableOpacity>
@@ -226,6 +392,39 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    gap: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#4F46E5',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   content: {
     flex: 1,

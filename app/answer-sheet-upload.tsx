@@ -211,12 +211,8 @@ export default function AnswerSheetUploadScreen() {
 
       console.log('[AnswerSheetUpload] Final submission data:', finalSubmission);
 
-      // Navigate to results
-      const score = finalSubmission.earned_points || 0;
-      const maxScore = finalSubmission.total_points || 0;
-      const percentage = finalSubmission.score_percent || 0;
-
-      router.replace(`/exam-results?score=${score}&maxScore=${maxScore}&percentage=${percentage}&examTitle=${encodeURIComponent(examTitle || 'Exam')}`);
+      // Navigate to results with submissionId for proper data fetching
+      router.replace(`/exam-results?submissionId=${submissionId}`);
       
     } catch (err) {
       console.error('[AnswerSheetUpload] Error navigating to results:', err);
