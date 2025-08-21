@@ -58,7 +58,7 @@ export default function TakeExamScreen() {
   const [submissionId, setSubmissionId] = useState<number | null>(null);
 
   // Create submission record
-  const createSubmission = useCallback(async (examId: number) => {
+  const createSubmission = useCallback(async (examId: number, allowedAttempts: number) => {
     if (!user?.id) return;
 
     try {
@@ -95,8 +95,8 @@ export default function TakeExamScreen() {
       const completedAttempts = existingSubmissions?.filter(sub => sub.status === 'Graded').length || 0;
       const nextAttemptNumber = completedAttempts + 1;
       
-      if (examData && completedAttempts >= examData.allowed_attempts) {
-        setError(`You have reached the maximum number of attempts (${examData.allowed_attempts}) for this exam.`);
+      if (completedAttempts >= allowedAttempts) {
+        setError(`You have reached the maximum number of attempts (${allowedAttempts}) for this exam.`);
         return;
       }
 
@@ -129,7 +129,7 @@ export default function TakeExamScreen() {
     } catch (err) {
       console.error('[TakeExam] Error in createSubmission:', err);
     }
-  }, [user?.id, examData]);
+  }, [user?.id]);
 
   // Fetch exam data and questions from database
   const fetchExamData = useCallback(async () => {
@@ -315,7 +315,7 @@ export default function TakeExamScreen() {
       setTimeRemaining(examData.duration_minutes * 60); // Convert to seconds
 
       // Create or get existing submission
-      await createSubmission(examData.id);
+      await createSubmission(examData.id, examData.allowed_attempts);
 
     } catch (err) {
       console.error('[TakeExam] Error in fetchExamData:', err);
@@ -438,8 +438,10 @@ export default function TakeExamScreen() {
   }, [submissionId, examData, answers, user?.id]);
 
   useEffect(() => {
-    fetchExamData();
-  }, [fetchExamData]);
+    if (examId && user?.id) {
+      fetchExamData();
+    }
+  }, [examId, user?.id, user?.gradeLevel, fetchExamData]);
 
   useEffect(() => {
     if (!examData) return;
