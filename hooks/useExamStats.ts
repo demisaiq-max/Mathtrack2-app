@@ -73,8 +73,13 @@ export function useExamStats() {
       console.log('[ExamStats] Fetching exam stats for user:', user.id);
 
       // Get user's grade level as number
-      const gradeLevel = user.gradeLevel ? parseInt(user.gradeLevel.replace('Grade ', '')) : null;
-      console.log('[ExamStats] User grade level:', gradeLevel);
+      let gradeLevel: number | null = null;
+      if (user.gradeLevel) {
+        const gradeMatch = user.gradeLevel.match(/\d+/);
+        gradeLevel = gradeMatch ? parseInt(gradeMatch[0]) : null;
+      }
+      console.log('[ExamStats] User grade level string:', user.gradeLevel);
+      console.log('[ExamStats] Parsed grade level number:', gradeLevel);
 
       if (!gradeLevel) {
         console.log('[ExamStats] No grade level found for user');
