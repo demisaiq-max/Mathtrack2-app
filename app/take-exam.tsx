@@ -59,7 +59,13 @@ export default function TakeExamScreen() {
 
   // Create submission record
   const createSubmission = useCallback(async (examId: number, allowedAttempts: number) => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log('[TakeExam] No user ID for submission creation');
+      setError('User authentication required');
+      return;
+    }
+
+    console.log('[TakeExam] Creating submission for exam:', examId, 'user:', user.id);
 
     try {
       // Check existing submissions for this exam
@@ -72,7 +78,8 @@ export default function TakeExamScreen() {
 
       if (checkError) {
         console.error('[TakeExam] Error checking existing submissions:', checkError);
-        setError(`Failed to check existing submissions: ${checkError.message || JSON.stringify(checkError)}`);
+        console.error('[TakeExam] Full error object:', JSON.stringify(checkError, null, 2));
+        setError(`Failed to check existing submissions: ${checkError.message || checkError.details || 'Unknown error'}`);
         return;
       }
 
@@ -109,7 +116,8 @@ export default function TakeExamScreen() {
 
       if (createError) {
         console.error('[TakeExam] Error creating submission:', createError);
-        setError(`Failed to create submission: ${createError.message || JSON.stringify(createError)}`);
+        console.error('[TakeExam] Full create error object:', JSON.stringify(createError, null, 2));
+        setError(`Failed to create submission: ${createError.message || createError.details || 'Unknown error'}`);
         return;
       }
 
@@ -118,19 +126,28 @@ export default function TakeExamScreen() {
 
     } catch (err) {
       console.error('[TakeExam] Error in createSubmission:', err);
-      setError(`Error creating submission: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
+      console.error('[TakeExam] Full createSubmission error:', JSON.stringify(err, null, 2));
+      setError(`Error creating submission: ${err instanceof Error ? err.message : String(err)}`);
     }
   }, [user?.id]);
 
   // Fetch exam data and questions from database
   const fetchExamData = useCallback(async () => {
-    if (!examId || !user?.id) return;
+    if (!examId || !user?.id) {
+      console.log('[TakeExam] Missing required data:', { examId, userId: user?.id });
+      setError('Missing exam ID or user authentication');
+      setIsLoading(false);
+      return;
+    }
 
     try {
       setIsLoading(true);
       setError(null);
 
       console.log('[TakeExam] Fetching exam data for ID:', examId);
+      console.log('[TakeExam] User ID:', user.id);
+      console.log('[TakeExam] User role:', user.accountType);
+      console.log('[TakeExam] User grade:', user.gradeLevel);
 
       // Fetch exam with questions
       const { data: exam, error: examError } = await supabase
@@ -160,7 +177,8 @@ export default function TakeExamScreen() {
 
       if (examError) {
         console.error('[TakeExam] Error fetching exam:', examError);
-        setError(`Failed to load exam: ${examError.message}`);
+        console.error('[TakeExam] Full exam error object:', JSON.stringify(examError, null, 2));
+        setError(`Failed to load exam: ${examError.message || examError.details || 'Unknown error'}`);
         return;
       }
 
@@ -255,11 +273,12 @@ export default function TakeExamScreen() {
 
     } catch (err) {
       console.error('[TakeExam] Error in fetchExamData:', err);
+      console.error('[TakeExam] Full fetchExamData error:', JSON.stringify(err, null, 2));
       setError(`Error loading exam: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsLoading(false);
     }
-  }, [examId, user?.id, createSubmission]);
+  }, [examId, user?.id, user?.accountType, user?.gradeLevel, createSubmission]);
 
 
 
@@ -320,6 +339,7 @@ export default function TakeExamScreen() {
 
                 if (error) {
                   console.error('[TakeExam] Error saving answer:', error);
+                  console.error('[TakeExam] Full answer save error:', JSON.stringify(error, null, 2));
                   throw error;
                 }
               });
@@ -337,6 +357,7 @@ export default function TakeExamScreen() {
 
               if (updateError) {
                 console.error('[TakeExam] Error updating submission:', updateError);
+                console.error('[TakeExam] Full update error:', JSON.stringify(updateError, null, 2));
                 throw updateError;
               }
 
@@ -349,6 +370,7 @@ export default function TakeExamScreen() {
 
               if (fetchError) {
                 console.error('[TakeExam] Error fetching results:', fetchError);
+                console.error('[TakeExam] Full fetch results error:', JSON.stringify(fetchError, null, 2));
                 throw fetchError;
               }
 
@@ -363,7 +385,8 @@ export default function TakeExamScreen() {
 
             } catch (err) {
               console.error('[TakeExam] Error submitting exam:', err);
-              Alert.alert('Error', 'Failed to submit exam. Please try again.');
+              console.error('[TakeExam] Full submit error:', JSON.stringify(err, null, 2));
+              Alert.alert('Error', `Failed to submit exam: ${err instanceof Error ? err.message : String(err)}`);
             } finally {
               setIsSubmitting(false);
             }
