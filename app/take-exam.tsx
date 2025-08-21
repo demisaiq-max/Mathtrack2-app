@@ -58,7 +58,7 @@ export default function TakeExamScreen() {
   const [submissionId, setSubmissionId] = useState<number | null>(null);
 
   // Create submission record
-  const createSubmission = useCallback(async (examId: number) => {
+  const createSubmission = useCallback(async (examId: number, allowedAttempts: number) => {
     if (!user?.id) return;
 
     try {
@@ -72,6 +72,7 @@ export default function TakeExamScreen() {
 
       if (checkError) {
         console.error('[TakeExam] Error checking existing submissions:', checkError);
+        setError(`Failed to check existing submissions: ${checkError.message || JSON.stringify(checkError)}`);
         return;
       }
 
@@ -89,8 +90,8 @@ export default function TakeExamScreen() {
       const completedAttempts = existingSubmissions?.filter(sub => sub.status === 'Graded').length || 0;
       const nextAttemptNumber = completedAttempts + 1;
       
-      if (examData && completedAttempts >= examData.allowed_attempts) {
-        setError(`You have reached the maximum number of attempts (${examData.allowed_attempts}) for this exam.`);
+      if (completedAttempts >= allowedAttempts) {
+        setError(`You have reached the maximum number of attempts (${allowedAttempts}) for this exam.`);
         return;
       }
 
@@ -108,6 +109,7 @@ export default function TakeExamScreen() {
 
       if (createError) {
         console.error('[TakeExam] Error creating submission:', createError);
+        setError(`Failed to create submission: ${createError.message || JSON.stringify(createError)}`);
         return;
       }
 
@@ -116,8 +118,9 @@ export default function TakeExamScreen() {
 
     } catch (err) {
       console.error('[TakeExam] Error in createSubmission:', err);
+      setError(`Error creating submission: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
     }
-  }, [user?.id, examData]);
+  }, [user?.id]);
 
   // Fetch exam data and questions from database
   const fetchExamData = useCallback(async () => {
@@ -189,28 +192,47 @@ export default function TakeExamScreen() {
         grade_level: exam.grade_level,
         allowed_attempts: exam.allowed_attempts || 1,
         questions: sortedQuestions.map((q: any) => {
-          // Ensure options is always an array
-          let processedOptions = [];
-          if (q.options) {
-            if (Array.isArray(q.options)) {
-              processedOptions = q.options;
-            } else if (typeof q.options === 'object') {
-              // JSONB from database comes as object, not string
-              processedOptions = q.options;
-            } else if (typeof q.options === 'string') {
-              try {
-                processedOptions = JSON.parse(q.options);
-              } catch {
-                console.error('[TakeExam] Failed to parse options JSON:', q.options);
-                processedOptions = [];
+          // Ensure options is always an array for MCQ and TRUE_FALSE questions
+          let processedOptions: any[] = [];
+          
+          if (q.type === 'MCQ' || q.type === 'TRUE_FALSE') {
+            if (q.options) {
+              if (Array.isArray(q.options)) {
+                processedOptions = q.options;
+              } else if (typeof q.options === 'object' && q.options !== null) {
+                // JSONB from database - could be array or object
+                if (Array.isArray(q.options)) {
+                  processedOptions = q.options;
+                } else {
+                  // Convert object to array if needed
+                  processedOptions = Object.values(q.options);
+                }
+              } else if (typeof q.options === 'string') {
+                try {
+                  const parsed = JSON.parse(q.options);
+                  processedOptions = Array.isArray(parsed) ? parsed : Object.values(parsed);
+                } catch {
+                  console.error('[TakeExam] Failed to parse options JSON:', q.options);
+                  processedOptions = [];
+                }
               }
+            }
+            
+            // For TRUE_FALSE, ensure we have True/False options if none provided
+            if (q.type === 'TRUE_FALSE' && processedOptions.length === 0) {
+              processedOptions = [
+                { key: 'True', text: 'True' },
+                { key: 'False', text: 'False' }
+              ];
             }
           }
           
-          console.log(`[TakeExam] Question ${q.id} raw options:`, q.options);
-          console.log(`[TakeExam] Question ${q.id} processed options:`, processedOptions);
-          console.log(`[TakeExam] Question ${q.id} options type:`, typeof q.options);
-          console.log(`[TakeExam] Question ${q.id} options isArray:`, Array.isArray(q.options));
+          console.log(`[TakeExam] Question ${q.id}:`);
+          console.log(`  - Type: ${q.type}`);
+          console.log(`  - Raw options:`, q.options);
+          console.log(`  - Processed options:`, processedOptions);
+          console.log(`  - Options type:`, typeof q.options);
+          console.log(`  - Options isArray:`, Array.isArray(q.options));
           
           return {
             id: q.id,
@@ -229,7 +251,7 @@ export default function TakeExamScreen() {
       setTimeRemaining(examData.duration_minutes * 60); // Convert to seconds
 
       // Create or get existing submission
-      await createSubmission(examData.id);
+      await createSubmission(examData.id, examData.allowed_attempts);
 
     } catch (err) {
       console.error('[TakeExam] Error in fetchExamData:', err);
