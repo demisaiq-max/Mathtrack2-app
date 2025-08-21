@@ -150,53 +150,77 @@ export function useExamStats() {
         });
       }
 
-      // Fetch upcoming exams
+      // Fetch upcoming exams using the same logic as useExams hook
       console.log('[ExamStats] Fetching upcoming exams for grade level:', gradeLevel);
       console.log('[ExamStats] Current date for comparison:', new Date().toISOString());
       
-      // First, let's check all scheduled exams for this grade level to debug
-      const { data: allScheduledExams } = await supabase
+      // Fetch all exams for this grade level (not just those with scheduled_start)
+      const { data: allExamsData, error: upcomingError } = await supabase
         .from('exams')
         .select(`
           id,
           title,
           scheduled_start,
+          scheduled_end,
           status,
           subjects (
             name
           )
         `)
         .eq('grade_level', gradeLevel)
-        .not('scheduled_start', 'is', null)
-        .order('scheduled_start', { ascending: true });
-      
-      console.log('[ExamStats] All scheduled exams for grade', gradeLevel, ':', allScheduledExams);
-      
-      // For now, let's show all scheduled exams regardless of date to debug the issue
-      const { data: upcomingData, error: upcomingError } = await supabase
-        .from('exams')
-        .select(`
-          id,
-          title,
-          scheduled_start,
-          subjects (
-            name
-          )
-        `)
-        .eq('grade_level', gradeLevel)
-        .eq('status', 'Active')
-        .not('scheduled_start', 'is', null)
-        .order('scheduled_start', { ascending: true })
-        .limit(10);
+        .order('scheduled_start', { ascending: true, nullsFirst: false });
 
       if (upcomingError) {
         console.error('[ExamStats] Error fetching upcoming exams:', upcomingError);
         console.error('[ExamStats] Upcoming exams error details:', JSON.stringify(upcomingError, null, 2));
       } else {
-        console.log('[ExamStats] Fetched upcoming exams raw data:', upcomingData);
-        console.log('[ExamStats] Number of upcoming exams found:', upcomingData?.length || 0);
+        console.log('[ExamStats] Fetched all exams raw data:', allExamsData);
+        console.log('[ExamStats] Number of exams found:', allExamsData?.length || 0);
         
-        const upcoming: UpcomingExam[] = (upcomingData || []).map((exam: any) => {
+        // Filter for active exams and apply the same logic as useExams
+        const activeExams = (allExamsData || []).filter((exam: any) => {
+          const isActive = !exam.status || exam.status === 'Active' || exam.status === 'active';
+          console.log(`[ExamStats] Exam ${exam.id} (${exam.title}) status: '${exam.status}', isActive: ${isActive}`);
+          return isActive;
+        });
+        
+        // Apply the same upcoming logic as useExams
+        const now = new Date();
+        const upcomingFiltered = activeExams.filter((exam: any) => {
+          // Check if user has already completed this exam
+          const hasSubmission = submissions?.some((sub: any) => 
+            sub.exam_id === exam.id && sub.status === 'Graded'
+          );
+          
+          if (hasSubmission) {
+            console.log(`[ExamStats] Exam ${exam.id} already completed by user`);
+            return false; // Don't show completed exams in upcoming
+          }
+          
+          if (exam.scheduled_start) {
+            const startTime = new Date(exam.scheduled_start);
+            const endTime = exam.scheduled_end ? new Date(exam.scheduled_end) : null;
+            
+            if (startTime > now) {
+              // Exam is scheduled for the future
+              console.log(`[ExamStats] Exam ${exam.id} is scheduled for future`);
+              return true;
+            } else if (!endTime || now <= endTime) {
+              // Exam is currently active
+              console.log(`[ExamStats] Exam ${exam.id} is currently active`);
+              return true;
+            } else {
+              console.log(`[ExamStats] Exam ${exam.id} has expired`);
+              return false;
+            }
+          } else {
+            // No schedule, available anytime
+            console.log(`[ExamStats] Exam ${exam.id} is available anytime`);
+            return true;
+          }
+        });
+        
+        const upcoming: UpcomingExam[] = upcomingFiltered.map((exam: any) => {
           console.log('[ExamStats] Processing upcoming exam:', {
             id: exam.id,
             title: exam.title,
@@ -208,7 +232,9 @@ export function useExamStats() {
             id: exam.id,
             title: exam.title,
             subject: exam.subjects?.name || 'Unknown Subject',
-            scheduledStart: new Date(exam.scheduled_start).toLocaleDateString(),
+            scheduledStart: exam.scheduled_start 
+              ? new Date(exam.scheduled_start).toLocaleDateString()
+              : 'Available anytime',
             icon: getSubjectIcon(exam.subjects?.name || ''),
           };
         });
