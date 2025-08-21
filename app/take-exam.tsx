@@ -376,8 +376,24 @@ export default function TakeExamScreen() {
 
               console.log('[TakeExam] Exam submitted successfully:', finalSubmission);
 
-              // Navigate to answer sheet upload
-              router.replace(`/answer-sheet-upload?submissionId=${submissionId}&examTitle=${encodeURIComponent(examData.title)}`);
+              // Show success message before navigation
+              Alert.alert(
+                'Exam Submitted!',
+                'Your exam has been submitted successfully. You will now be taken to upload any additional answer sheets.',
+                [
+                  {
+                    text: 'Continue',
+                    onPress: () => {
+                      // Navigate to answer sheet upload
+                      console.log('[TakeExam] Navigating to answer sheet upload with params:', {
+                        submissionId,
+                        examTitle: examData.title
+                      });
+                      router.replace(`/answer-sheet-upload?submissionId=${submissionId}&examTitle=${encodeURIComponent(examData.title)}`);
+                    }
+                  }
+                ]
+              );
 
             } catch (err) {
               console.error('[TakeExam] Error submitting exam:', err);
