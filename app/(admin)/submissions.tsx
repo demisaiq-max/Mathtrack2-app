@@ -133,20 +133,39 @@ export default function SubmissionsScreen() {
     setIsViewModalVisible(true);
   };
 
-  const handleDownloadSubmission = (submission: Submission) => {
-    if (Platform.OS === 'web') {
-      if (submission.fileUrl) {
+  const handleDownloadSubmission = async (submission: Submission) => {
+    try {
+      if (!submission.fileUrl) {
+        Alert.alert('Error', 'File URL not available for download');
+        return;
+      }
+
+      if (Platform.OS === 'web') {
+        // Web download
         const link = document.createElement('a');
         link.href = submission.fileUrl;
         link.download = submission.fileName;
+        link.target = '_blank';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        
+        Alert.alert('Success', `${submission.fileName} download started`);
       } else {
-        Alert.alert('Download', `Downloading ${submission.fileName}...`);
+        // Mobile - open in browser or external app
+        const { Linking } = require('react-native');
+        const supported = await Linking.canOpenURL(submission.fileUrl);
+        
+        if (supported) {
+          await Linking.openURL(submission.fileUrl);
+          Alert.alert('Success', `Opening ${submission.fileName}`);
+        } else {
+          Alert.alert('Error', 'Cannot open this file type on this device');
+        }
       }
-    } else {
-      Alert.alert('Download', `Downloading ${submission.fileName}...`);
+    } catch (error) {
+      console.error('Error downloading submission:', error);
+      Alert.alert('Error', 'Failed to download file. Please try again.');
     }
   };
 
@@ -502,11 +521,22 @@ export default function SubmissionsScreen() {
               </View>
               
               <View style={[styles.filePreview, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.previewTitle, { color: colors.text }]}>{t('filePreview')}</Text>
+                <View style={styles.previewHeader}>
+                  <Text style={[styles.previewTitle, { color: colors.text }]}>{t('filePreview')}</Text>
+                  {selectedSubmission.fileUrl && (
+                    <TouchableOpacity 
+                      style={[styles.downloadButton, { backgroundColor: colors.primary }]}
+                      onPress={() => handleDownloadSubmission(selectedSubmission)}
+                    >
+                      <Download size={16} color={colors.primaryText} />
+                      <Text style={[styles.downloadButtonText, { color: colors.primaryText }]}>Download</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
                 <View style={[styles.previewPlaceholder, { backgroundColor: colors.background, borderColor: colors.border }]}>
                   <FileText size={48} color={colors.textSecondary} />
                   <Text style={[styles.previewText, { color: colors.textSecondary }]}>{t('pdfPreviewNotAvailable')}</Text>
-                  <Text style={[styles.previewSubtext, { color: colors.textSecondary }]}>{t('clickDownloadToView')}</Text>
+                  <Text style={[styles.previewSubtext, { color: colors.textSecondary }]}>{selectedSubmission.fileUrl ? 'Click download button above to view the file' : 'File not available for download'}</Text>
                 </View>
               </View>
             </ScrollView>
@@ -947,10 +977,27 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
   },
+  previewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   previewTitle: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 16,
+  },
+  downloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    gap: 6,
+  },
+  downloadButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   previewPlaceholder: {
     alignItems: 'center',
