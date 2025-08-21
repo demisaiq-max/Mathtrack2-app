@@ -13,6 +13,7 @@ import { TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react-nativ
 import { useLanguage } from '@/hooks/language-context';
 import { useTheme } from '@/hooks/theme-context';
 import { useExamStats } from '@/hooks/useExamStats';
+import PerformanceTrendChart from '@/components/PerformanceTrendChart';
 
 export default function ScoresScreen() {
   const { t } = useLanguage();
@@ -111,6 +112,10 @@ export default function ScoresScreen() {
             <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('totalExams')}</Text>
             <Text style={[styles.summaryValue, { color: colors.primary }]}>{stats.totalExams}</Text>
           </View>
+        </View>
+
+        <View style={styles.chartSection}>
+          <PerformanceTrendChart completedExams={completedExams} />
         </View>
 
         <View style={styles.section}>
@@ -364,5 +369,8 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     textAlign: 'center',
+  },
+  chartSection: {
+    paddingHorizontal: 20,
   },
 });
