@@ -9,9 +9,11 @@ import {
   Modal,
   Alert,
   Platform,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Filter, Eye, Download, Edit, X, Save, FileText, ChevronDown } from 'lucide-react-native';
+import { Search, Filter, Eye, Download, Edit, X, Save, FileText, ChevronDown, RefreshCw } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useAdmin } from '@/hooks/admin-context';
 import { useTheme } from '@/hooks/theme-context';
@@ -37,7 +39,7 @@ interface GradingData {
 }
 
 export default function SubmissionsScreen() {
-  const { submissions, updateSubmission, pendingSubmissionsCount } = useAdmin();
+  const { submissions, updateSubmission, pendingSubmissionsCount, isLoading, fetchSubmissions } = useAdmin();
   const { colors, isDark } = useTheme();
   const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
@@ -59,6 +61,18 @@ export default function SubmissionsScreen() {
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [isGradingModalVisible, setIsGradingModalVisible] = useState(false);
   const [gradingData, setGradingData] = useState<GradingData>({ grade: '', feedback: '' });
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await fetchSubmissions();
+    } catch (error) {
+      console.error('Error refreshing submissions:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const gradeOptions = [
     t('allGradesFilter'),
@@ -301,12 +315,49 @@ export default function SubmissionsScreen() {
                   onChangeText={setSearchQuery}
                 />
               </View>
+              <TouchableOpacity
+                style={[styles.refreshButton, { backgroundColor: colors.primary }]}
+                onPress={handleRefresh}
+                disabled={isLoading || refreshing}
+              >
+                <RefreshCw size={16} color={colors.primaryText} />
+              </TouchableOpacity>
             </View>
           </View>
 
+          {/* Loading State */}
+          {isLoading && (
+            <View style={[styles.loadingContainer, { backgroundColor: colors.surface }]}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading submissions...</Text>
+            </View>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && filteredSubmissions.length === 0 && (
+            <View style={[styles.emptyContainer, { backgroundColor: colors.surface }]}>
+              <FileText size={48} color={colors.textSecondary} />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>No Submissions Found</Text>
+              <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>There are no exam submissions to display at this time.</Text>
+            </View>
+          )}
+
           {/* Table Container with Horizontal Scroll */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableContainer}>
-            <View style={styles.table}>
+          {!isLoading && filteredSubmissions.length > 0 && (
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={true} 
+              style={styles.tableContainer}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={handleRefresh}
+                  colors={[colors.primary]}
+                  tintColor={colors.primary}
+                />
+              }
+            >
+              <View style={styles.table}>
               {/* Table Header */}
               <View style={[styles.tableHeader, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 <Text style={[styles.tableHeaderText, styles.studentColumn, { color: colors.textSecondary }]}>{t('studentCol')}</Text>
@@ -379,7 +430,8 @@ export default function SubmissionsScreen() {
                 );
               })}
             </View>
-          </ScrollView>
+            </ScrollView>
+          )}
         </View>
       </ScrollView>
 
@@ -967,5 +1019,41 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  refreshButton: {
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  loadingText: {
+    fontSize: 14,
+    marginTop: 12,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

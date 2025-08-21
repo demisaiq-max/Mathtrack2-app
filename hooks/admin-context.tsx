@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Alert, Platform } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import createContextHook from '@nkzw/create-context-hook';
+import { supabase } from '@/config/supabase';
 
 interface Submission {
   id: string;
@@ -72,6 +73,7 @@ interface AdminContextType {
   lectureNotes: LectureNote[];
   examReports: ExamReport[];
   pendingSubmissionsCount: number;
+  isLoading: boolean;
   addAnnouncement: (announcement: Omit<Announcement, 'id' | 'date' | 'likes' | 'comments'>) => void;
   updateSubmission: (id: string, updates: Partial<Submission>) => void;
   likeAnnouncement: (id: string) => void;
@@ -83,6 +85,7 @@ interface AdminContextType {
   saveExamReport: (studentId: string, studentName: string, examId: string, examTitle: string) => Promise<void>;
   updateExamReport: (id: string, updates: Partial<ExamReport>) => void;
   deleteExamReport: (id: string) => void;
+  fetchSubmissions: () => Promise<void>;
 }
 
 export const [AdminProvider, useAdmin] = createContextHook((): AdminContextType => {
@@ -91,82 +94,84 @@ export const [AdminProvider, useAdmin] = createContextHook((): AdminContextType 
   const [qaQuestions, setQAQuestions] = useState<QAQuestion[]>([]);
   const [lectureNotes, setLectureNotes] = useState<LectureNote[]>([]);
   const [examReports, setExamReports] = useState<ExamReport[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const fetchSubmissions = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      console.log('[AdminContext] Fetching submissions from database...');
+      
+      const { data: submissionsData, error } = await supabase
+        .from('exam_submissions')
+        .select(`
+          id,
+          submitted_at,
+          status,
+          score_percent,
+          file_name,
+          file_size_bytes,
+          storage_path,
+          student:profiles!exam_submissions_student_id_fkey(
+            id,
+            full_name
+          ),
+          exam:exams(
+            id,
+            title,
+            grade_level,
+            subject:subjects(
+              name
+            )
+          )
+        `)
+        .order('submitted_at', { ascending: false });
+
+      if (error) {
+        console.error('[AdminContext] Error fetching submissions:', error);
+        throw error;
+      }
+
+      console.log('[AdminContext] Raw submissions data:', submissionsData);
+
+      const formattedSubmissions: Submission[] = (submissionsData || []).map((sub: any) => {
+        const studentName = sub.student?.full_name || 'Unknown Student';
+        const examTitle = sub.exam?.title || 'Unknown Exam';
+        const gradeLevel = sub.exam?.grade_level || '';
+        const subjectName = sub.exam?.subject?.name || '';
+        
+        const examName = `Grade ${gradeLevel} ${subjectName} - ${examTitle}`;
+        const fileName = sub.file_name || 'answer_sheet.pdf';
+        const fileSize = sub.file_size_bytes ? `${(sub.file_size_bytes / (1024 * 1024)).toFixed(1)} MB` : '0 MB';
+        const submittedDate = sub.submitted_at ? new Date(sub.submitted_at).toLocaleDateString('en-GB') : '';
+        const grade = sub.score_percent ? `${sub.score_percent}%` : undefined;
+        
+        return {
+          id: sub.id.toString(),
+          studentName,
+          studentInitial: studentName.charAt(0).toUpperCase(),
+          examName,
+          fileName,
+          fileSize,
+          submittedDate,
+          status: sub.status as 'Pending' | 'Graded' | 'Reviewed',
+          grade,
+          fileUrl: sub.storage_path ? `${supabase.storage.from('submissions').getPublicUrl(sub.storage_path).data.publicUrl}` : undefined,
+        };
+      });
+
+      console.log('[AdminContext] Formatted submissions:', formattedSubmissions);
+      setSubmissions(formattedSubmissions);
+    } catch (error) {
+      console.error('[AdminContext] Error in fetchSubmissions:', error);
+      Alert.alert('Error', 'Failed to fetch submissions. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    // Initialize with mock data
-    setSubmissions([
-      {
-        id: '1',
-        studentName: 'John Smith',
-        studentInitial: 'J',
-        examName: 'Grade 5 Mathematics - Final Exam',
-        fileName: 'algebra_final_john_smith.pdf',
-        fileSize: '2.4 MB',
-        submittedDate: '15/01/2025',
-        status: 'Pending',
-        fileUrl: 'https://example.com/files/algebra_final_john_smith.pdf',
-      },
-      {
-        id: '2',
-        studentName: 'Sarah Johnson',
-        studentInitial: 'S',
-        examName: 'Grade 6 Science - Chapter 8 Quiz',
-        fileName: 'geometry_quiz_sarah.pdf',
-        fileSize: '1.8 MB',
-        submittedDate: '15/01/2025',
-        status: 'Graded',
-        grade: '92%',
-        feedback: 'Excellent work! Great understanding of geometric principles.',
-        fileUrl: 'https://example.com/files/geometry_quiz_sarah.pdf',
-      },
-      {
-        id: '3',
-        studentName: 'Mike Davis',
-        studentInitial: 'M',
-        examName: 'Grade 7 Mathematics - Midterm',
-        fileName: 'calculus_midterm_mike.pdf',
-        fileSize: '3.2 MB',
-        submittedDate: '14/01/2025',
-        status: 'Reviewed',
-        feedback: 'Good effort, but needs improvement in integration techniques.',
-        fileUrl: 'https://example.com/files/calculus_midterm_mike.pdf',
-      },
-      {
-        id: '4',
-        studentName: 'Emma Wilson',
-        studentInitial: 'E',
-        examName: 'Grade 8 Physics - Quiz 3',
-        fileName: 'stats_quiz_emma.pdf',
-        fileSize: '1.5 MB',
-        submittedDate: '13/01/2025',
-        status: 'Pending',
-        fileUrl: 'https://example.com/files/stats_quiz_emma.pdf',
-      },
-      {
-        id: '5',
-        studentName: 'Alex Chen',
-        studentInitial: 'A',
-        examName: 'Grade 9 Chemistry - Lab Report',
-        fileName: 'chemistry_lab_alex.pdf',
-        fileSize: '2.1 MB',
-        submittedDate: '12/01/2025',
-        status: 'Graded',
-        grade: '88%',
-        feedback: 'Good analysis, but could improve on conclusion.',
-        fileUrl: 'https://example.com/files/chemistry_lab_alex.pdf',
-      },
-      {
-        id: '6',
-        studentName: 'Lisa Park',
-        studentInitial: 'L',
-        examName: 'Grade 10 Biology - Final Exam',
-        fileName: 'biology_final_lisa.pdf',
-        fileSize: '3.5 MB',
-        submittedDate: '11/01/2025',
-        status: 'Pending',
-        fileUrl: 'https://example.com/files/biology_final_lisa.pdf',
-      },
-    ]);
+    // Fetch real data on mount
+    fetchSubmissions();
 
     setAnnouncements([
       {
@@ -243,7 +248,7 @@ export const [AdminProvider, useAdmin] = createContextHook((): AdminContextType 
         priority: 'urgent',
       },
     ]);
-  }, []);
+  }, [fetchSubmissions]);
 
   const pendingSubmissionsCount = useMemo(() => 
     submissions.filter(sub => sub.status === 'Pending').length, 
@@ -546,6 +551,7 @@ export const [AdminProvider, useAdmin] = createContextHook((): AdminContextType 
     lectureNotes,
     examReports,
     pendingSubmissionsCount,
+    isLoading,
     addAnnouncement,
     updateSubmission,
     likeAnnouncement,
@@ -557,6 +563,7 @@ export const [AdminProvider, useAdmin] = createContextHook((): AdminContextType 
     saveExamReport,
     updateExamReport,
     deleteExamReport,
+    fetchSubmissions,
   }), [
     submissions,
     announcements,
@@ -564,6 +571,7 @@ export const [AdminProvider, useAdmin] = createContextHook((): AdminContextType 
     lectureNotes,
     examReports,
     pendingSubmissionsCount,
+    isLoading,
     addAnnouncement,
     updateSubmission,
     likeAnnouncement,
@@ -575,5 +583,6 @@ export const [AdminProvider, useAdmin] = createContextHook((): AdminContextType 
     saveExamReport,
     updateExamReport,
     deleteExamReport,
+    fetchSubmissions,
   ]);
 });
