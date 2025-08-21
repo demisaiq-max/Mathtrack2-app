@@ -564,18 +564,14 @@ IMPORTANT: Return only the JSON array, no additional text.`;
             dbQuestionType = 'MCQ';
         }
 
-        // Format options for database - ensure they are properly formatted
+        // Format options for database
         let formattedOptions = null;
         if (question.options && question.options.length > 0) {
           if (question.type === 'multiple-choice') {
-            // Ensure we have valid options
-            const validOptions = question.options.filter(opt => opt && opt.trim());
-            if (validOptions.length > 0) {
-              formattedOptions = validOptions.map((option, optIndex) => ({
-                key: String.fromCharCode(65 + optIndex), // A, B, C, D
-                text: option.trim()
-              }));
-            }
+            formattedOptions = question.options.map((option, optIndex) => ({
+              key: String.fromCharCode(65 + optIndex), // A, B, C, D
+              text: option
+            }));
           } else if (question.type === 'true-false') {
             formattedOptions = [
               { key: 'A', text: question.options[0] || 'True' },
@@ -584,28 +580,14 @@ IMPORTANT: Return only the JSON array, no additional text.`;
           }
         }
 
-        // Format correct answer - ensure it's properly set
+        // Format correct answer
         let correctAnswer = null;
         if (question.type === 'multiple-choice' && typeof question.correctAnswer === 'number') {
-          // Validate the correct answer index
-          if (question.correctAnswer >= 0 && question.correctAnswer < (question.options?.length || 0)) {
-            correctAnswer = String.fromCharCode(65 + question.correctAnswer); // Convert 0,1,2,3 to A,B,C,D
-          }
+          correctAnswer = String.fromCharCode(65 + question.correctAnswer); // Convert 0,1,2,3 to A,B,C,D
         } else if (question.type === 'true-false' && typeof question.correctAnswer === 'number') {
           correctAnswer = question.correctAnswer === 0 ? 'A' : 'B'; // 0 = A (True), 1 = B (False)
-        } else if (typeof question.correctAnswer === 'string' && question.correctAnswer.trim()) {
-          correctAnswer = question.correctAnswer.trim();
-        }
-
-        // Validate that we have proper data before inserting
-        if (!formattedOptions && (question.type === 'multiple-choice' || question.type === 'true-false')) {
-          console.error(`Question ${index + 1} has no valid options:`, question);
-          throw new Error(`Question ${index + 1} has no valid options. Please check the question setup.`);
-        }
-        
-        if (!correctAnswer && (question.type === 'multiple-choice' || question.type === 'true-false')) {
-          console.error(`Question ${index + 1} has no correct answer:`, question);
-          throw new Error(`Question ${index + 1} has no correct answer selected. Please set the correct answer.`);
+        } else if (typeof question.correctAnswer === 'string') {
+          correctAnswer = question.correctAnswer;
         }
 
         const questionData = {
@@ -614,11 +596,11 @@ IMPORTANT: Return only the JSON array, no additional text.`;
           type: dbQuestionType,
           difficulty: 'Medium' as const,
           points: question.points || 1,
-          prompt: question.question.trim(),
+          prompt: question.question,
           options: formattedOptions,
           correct_answer: correctAnswer,
-          explanation: question.explanation?.trim() || null,
-          ai_generated: question.id.startsWith('q_') && (question.explanation?.includes('AI generated') || false)
+          explanation: question.explanation || null,
+          ai_generated: question.id.includes('q_') && question.id.includes('ai_')
         };
         
         console.log(`Question ${index + 1} formatted:`, questionData);

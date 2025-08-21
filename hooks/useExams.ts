@@ -65,9 +65,35 @@ export function useExams() {
       
       console.log('[useExams] Extracted grade level:', numericGradeLevel);
 
+      // First, try a simple query to test connection
+      console.log('[useExams] Testing basic connection...');
+      const { data: testData, error: testError } = await supabase
+        .from('exams')
+        .select('id, title')
+        .limit(1);
+      
+      if (testError) {
+        console.error('[useExams] Basic connection test failed:', testError);
+        setError(`Connection error: ${testError.message}`);
+        return;
+      }
+      
+      console.log('[useExams] Basic connection successful, test data:', testData);
 
+      // Now try the full query - first check what statuses exist
+      console.log('[useExams] Checking available exam statuses...');
+      const { data: statusCheck, error: statusError } = await supabase
+        .from('exams')
+        .select('id, title, status, grade_level')
+        .limit(10);
+      
+      if (statusError) {
+        console.error('[useExams] Status check failed:', statusError);
+      } else {
+        console.log('[useExams] Available exams with statuses:', statusCheck);
+      }
 
-      // Build the main query
+      // Build the main query - don't filter by status initially to see all exams
       let query = supabase
         .from('exams')
         .select(`
@@ -82,8 +108,11 @@ export function useExams() {
           allowed_attempts,
           subjects(name),
           exam_questions(id, points)
-        `)
-        .eq('status', 'Active');
+        `);
+      
+      // Only filter by active status if we want to exclude inactive exams
+      // For now, let's include all exams to see what's available
+      // .eq('status', 'Active');
 
       // Only filter by grade level if we have one
       if (numericGradeLevel !== null) {
@@ -111,7 +140,21 @@ export function useExams() {
       console.log('[useExams] Number of exams found:', examData?.length || 0);
       
       if (!examData || examData.length === 0) {
-        console.log('[useExams] No exams found for grade level:', numericGradeLevel);
+        console.log('[useExams] No exams found. Debug info:');
+        console.log('- User grade level:', user.gradeLevel);
+        console.log('- Numeric grade level:', numericGradeLevel);
+        console.log('- User ID:', user.id);
+        
+        // Try a simple query without grade filter to see if there are any exams at all
+        const { data: allExams, error: allExamsError } = await supabase
+          .from('exams')
+          .select('id, title, grade_level, status')
+          .limit(10);
+        
+        console.log('[useExams] All active exams (debug):', allExams);
+        if (allExamsError) {
+          console.error('[useExams] Error fetching all exams:', allExamsError);
+        }
       }
 
       // Now fetch submissions separately for each exam
@@ -134,8 +177,14 @@ export function useExams() {
         }
       }
 
-      // Process the data
+      // Process the data - filter out inactive exams here instead of in the query
       const processedExams: ExamData[] = (examData || [])
+        .filter((exam: any) => {
+          // Include exams that are Active or don't have a status set
+          const isActive = !exam.status || exam.status === 'Active' || exam.status === 'active';
+          console.log(`[useExams] Exam ${exam.id} (${exam.title}) status: '${exam.status}', isActive: ${isActive}`);
+          return isActive;
+        })
         .map((exam: any) => {
           const totalQuestions = exam.exam_questions?.length || 0;
           const totalPoints = exam.exam_questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;

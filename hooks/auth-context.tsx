@@ -36,17 +36,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           setUser(userData);
           await AsyncStorage.setItem('user', JSON.stringify(userData));
         } else {
-          console.error('[Auth] Profile fetch error:', error);
-          console.error('[Auth] Error details:', {
-            message: error?.message,
-            code: error?.code,
-            details: error?.details,
-            hint: error?.hint
-          });
-          
-          // If there's an RLS error or any database error, try to get basic user info from auth session
+          console.error('[Auth] Profile fetch error:', JSON.stringify(error, null, 2));
+          // If there's an RLS error, try to get basic user info from auth session
           if (session?.user) {
-            console.log('[Auth] Falling back to session data due to profile fetch error');
             const basicUserData: User = {
               id: session.user.id,
               email: session.user.email || '',
@@ -98,7 +90,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           await AsyncStorage.setItem('user', JSON.stringify(userData));
         } else {
           // If profile fetch fails, use basic session data
-          console.log('[Auth] Profile fetch failed in auth state change, using session data');
           if (session?.user) {
             const basicUserData: User = {
               id: session.user.id,

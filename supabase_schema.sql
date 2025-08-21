@@ -267,17 +267,9 @@ alter table public.achievement_definitions enable row level security;
 alter table public.student_achievements enable row level security;
 alter table public.metrics_daily enable row level security;
 
--- PROFILES RLS (Fixed to avoid infinite recursion)
-create policy "profiles_self_read" on public.profiles
-  for select using (id = auth.uid());
-create policy "profiles_admin_read_all" on public.profiles
-  for select using (
-    exists (
-      select 1 from auth.users au 
-      join public.profiles p on p.id = au.id 
-      where au.id = auth.uid() and p.role = 'admin'
-    )
-  );
+-- PROFILES RLS
+create policy "profiles_self_read_admin_read_all" on public.profiles
+  for select using (id = auth.uid() or (select role from public.profiles where id = auth.uid()) = 'admin');
 create policy "profiles_insert_self" on public.profiles
   for insert with check (id = auth.uid());
 create policy "profiles_update_self" on public.profiles
@@ -353,13 +345,7 @@ create policy "answers_admin_read_via_exam" on public.submission_answers
 create policy "stats_student_read_own" on public.student_exam_stats
   for select using (student_id = auth.uid());
 create policy "stats_admin_read_all" on public.student_exam_stats
-  for select using (
-    exists (
-      select 1 from auth.users au 
-      join public.profiles p on p.id = au.id 
-      where au.id = auth.uid() and p.role = 'admin'
-    )
-  );
+  for select using ((select role from public.profiles where id = auth.uid()) = 'admin');
 
 -- ANNOUNCEMENTS & INTERACTIONS RLS
 create policy "announcements_admin_manage" on public.announcements
@@ -414,19 +400,8 @@ create policy "forum_question_delete_own" on public.questions
   for delete using (author_id = auth.uid());
 -- Allow admins to manage all questions
 create policy "forum_question_admin_manage" on public.questions
-  for all using (
-    exists (
-      select 1 from auth.users au 
-      join public.profiles p on p.id = au.id 
-      where au.id = auth.uid() and p.role = 'admin'
-    )
-  ) with check (
-    exists (
-      select 1 from auth.users au 
-      join public.profiles p on p.id = au.id 
-      where au.id = auth.uid() and p.role = 'admin'
-    )
-  );
+  for all using ((select role from public.profiles where id = auth.uid()) = 'admin')
+  with check ((select role from public.profiles where id = auth.uid()) = 'admin');
 create policy "forum_interact_read_grade" on public.question_likes
   for select using (
     exists (
@@ -474,48 +449,20 @@ create policy "schedules_students_read_grade" on public.schedules
 
 -- ACHIEVEMENTS RLS
 create policy "achievement_defs_admin_manage" on public.achievement_definitions
-  for all using (
-    exists (
-      select 1 from auth.users au 
-      join public.profiles p on p.id = au.id 
-      where au.id = auth.uid() and p.role = 'admin'
-    )
-  ) with check (
-    exists (
-      select 1 from auth.users au 
-      join public.profiles p on p.id = au.id 
-      where au.id = auth.uid() and p.role = 'admin'
-    )
-  );
+  for all using ((select role from public.profiles where id = auth.uid()) = 'admin')
+  with check ((select role from public.profiles where id = auth.uid()) = 'admin');
 create policy "achievement_defs_read_all" on public.achievement_definitions
   for select using (true);
 create policy "student_achievements_student_manage_own" on public.student_achievements
   for all using (student_id = auth.uid()) with check (student_id = auth.uid());
 create policy "student_achievements_admin_read" on public.student_achievements
-  for select using (
-    exists (
-      select 1 from auth.users au 
-      join public.profiles p on p.id = au.id 
-      where au.id = auth.uid() and p.role = 'admin'
-    )
-  );
+  for select using ((select role from public.profiles where id = auth.uid()) = 'admin');
 
 -- METRICS RLS
 create policy "metrics_read_all" on public.metrics_daily for select using (true);
 create policy "metrics_admin_write" on public.metrics_daily
-  for all using (
-    exists (
-      select 1 from auth.users au 
-      join public.profiles p on p.id = au.id 
-      where au.id = auth.uid() and p.role = 'admin'
-    )
-  ) with check (
-    exists (
-      select 1 from auth.users au 
-      join public.profiles p on p.id = au.id 
-      where au.id = auth.uid() and p.role = 'admin'
-    )
-  );
+  for all using ((select role from public.profiles where id = auth.uid()) = 'admin')
+  with check ((select role from public.profiles where id = auth.uid()) = 'admin');
 
 -- TRIGGERS
 create or replace function public.auto_grade_mcq_tf() returns trigger as $$

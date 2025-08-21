@@ -58,7 +58,7 @@ export default function TakeExamScreen() {
   const [submissionId, setSubmissionId] = useState<number | null>(null);
 
   // Create submission record
-  const createSubmission = useCallback(async (examId: number, allowedAttempts: number) => {
+  const createSubmission = useCallback(async (examId: number) => {
     if (!user?.id) return;
 
     try {
@@ -71,13 +71,7 @@ export default function TakeExamScreen() {
         .order('attempt_number', { ascending: false });
 
       if (checkError) {
-        console.error('[TakeExam] Error checking existing submissions:', {
-          message: checkError.message,
-          details: checkError.details,
-          hint: checkError.hint,
-          code: checkError.code
-        });
-        setError(`Failed to check existing submissions: ${checkError.message}`);
+        console.error('[TakeExam] Error checking existing submissions:', checkError);
         return;
       }
 
@@ -95,8 +89,8 @@ export default function TakeExamScreen() {
       const completedAttempts = existingSubmissions?.filter(sub => sub.status === 'Graded').length || 0;
       const nextAttemptNumber = completedAttempts + 1;
       
-      if (completedAttempts >= allowedAttempts) {
-        setError(`You have reached the maximum number of attempts (${allowedAttempts}) for this exam.`);
+      if (examData && completedAttempts >= examData.allowed_attempts) {
+        setError(`You have reached the maximum number of attempts (${examData.allowed_attempts}) for this exam.`);
         return;
       }
 
@@ -113,13 +107,7 @@ export default function TakeExamScreen() {
         .single();
 
       if (createError) {
-        console.error('[TakeExam] Error creating submission:', {
-          message: createError.message,
-          details: createError.details,
-          hint: createError.hint,
-          code: createError.code
-        });
-        setError(`Failed to create submission: ${createError.message}`);
+        console.error('[TakeExam] Error creating submission:', createError);
         return;
       }
 
@@ -129,27 +117,17 @@ export default function TakeExamScreen() {
     } catch (err) {
       console.error('[TakeExam] Error in createSubmission:', err);
     }
-  }, [user?.id]);
+  }, [user?.id, examData]);
 
   // Fetch exam data and questions from database
   const fetchExamData = useCallback(async () => {
-    if (!examId || !user?.id) {
-      console.log('[TakeExam] Missing required data:', { examId, userId: user?.id });
-      setError('Missing exam ID or user not authenticated');
-      setIsLoading(false);
-      return;
-    }
+    if (!examId || !user?.id) return;
 
     try {
       setIsLoading(true);
       setError(null);
 
-      console.log('[TakeExam] Fetching exam data for ID:', examId, 'User ID:', user.id);
-      console.log('[TakeExam] User grade level:', user.gradeLevel);
-      
-      // First check if user has access to this exam
-      const userGradeNumber = user.gradeLevel ? parseInt(user.gradeLevel.replace('Grade ', '')) : null;
-      console.log('[TakeExam] User grade number:', userGradeNumber);
+      console.log('[TakeExam] Fetching exam data for ID:', examId);
 
       // Fetch exam with questions
       const { data: exam, error: examError } = await supabase
@@ -162,9 +140,6 @@ export default function TakeExamScreen() {
           instructions,
           grade_level,
           allowed_attempts,
-          status,
-          scheduled_start,
-          scheduled_end,
           subjects(name),
           exam_questions(
             id,
@@ -181,12 +156,7 @@ export default function TakeExamScreen() {
         .single();
 
       if (examError) {
-        console.error('[TakeExam] Error fetching exam:', {
-          message: examError.message,
-          details: examError.details,
-          hint: examError.hint,
-          code: examError.code
-        });
+        console.error('[TakeExam] Error fetching exam:', examError);
         setError(`Failed to load exam: ${examError.message}`);
         return;
       }
@@ -196,39 +166,7 @@ export default function TakeExamScreen() {
         return;
       }
 
-      console.log('[TakeExam] Exam data loaded:', {
-        id: exam.id,
-        title: exam.title,
-        grade_level: exam.grade_level,
-        status: exam.status,
-        scheduled_start: exam.scheduled_start,
-        scheduled_end: exam.scheduled_end,
-        questionsCount: exam.exam_questions?.length || 0,
-        subject: exam.subjects?.[0]?.name
-      });
-      
-      // Check if exam is available for the user's grade
-      if (userGradeNumber && exam.grade_level !== userGradeNumber) {
-        setError(`This exam is for Grade ${exam.grade_level}, but you are in Grade ${userGradeNumber}`);
-        return;
-      }
-      
-      // Check if exam is scheduled and available
-      const now = new Date();
-      if (exam.scheduled_start && new Date(exam.scheduled_start) > now) {
-        setError('This exam is not yet available. Please check the schedule.');
-        return;
-      }
-      
-      if (exam.scheduled_end && new Date(exam.scheduled_end) < now) {
-        setError('This exam has ended and is no longer available.');
-        return;
-      }
-      
-      if (exam.status !== 'Active') {
-        setError('This exam is not currently active.');
-        return;
-      }
+      console.log('[TakeExam] Exam data loaded:', exam);
 
       // Sort questions by position
       const sortedQuestions = (exam.exam_questions || []).sort((a: any, b: any) => a.position - b.position);
@@ -251,43 +189,17 @@ export default function TakeExamScreen() {
         grade_level: exam.grade_level,
         allowed_attempts: exam.allowed_attempts || 1,
         questions: sortedQuestions.map((q: any) => {
-          // Process options from JSONB
+          // Ensure options is always an array
           let processedOptions = [];
-          
-          console.log(`[TakeExam] Question ${q.id} raw data:`, {
-            id: q.id,
-            type: q.type,
-            prompt: q.prompt?.substring(0, 50) + '...',
-            options: q.options,
-            optionsType: typeof q.options,
-            optionsIsArray: Array.isArray(q.options),
-            correct_answer: q.correct_answer,
-            points: q.points
-          });
-          
           if (q.options) {
             if (Array.isArray(q.options)) {
-              // Already an array
               processedOptions = q.options;
-            } else if (typeof q.options === 'object' && q.options !== null) {
-              // JSONB object - could be array stored as object or actual object
-              // Check if it has numeric keys (array stored as object)
-              const keys = Object.keys(q.options);
-              const isArrayLike = keys.every(key => !isNaN(parseInt(key)));
-              
-              if (isArrayLike) {
-                // Convert object with numeric keys back to array
-                processedOptions = keys
-                  .sort((a, b) => parseInt(a) - parseInt(b))
-                  .map(key => q.options[key]);
-              } else {
-                // Treat as single object, wrap in array
-                processedOptions = [q.options];
-              }
+            } else if (typeof q.options === 'object') {
+              // JSONB from database comes as object, not string
+              processedOptions = q.options;
             } else if (typeof q.options === 'string') {
               try {
-                const parsed = JSON.parse(q.options);
-                processedOptions = Array.isArray(parsed) ? parsed : [parsed];
+                processedOptions = JSON.parse(q.options);
               } catch {
                 console.error('[TakeExam] Failed to parse options JSON:', q.options);
                 processedOptions = [];
@@ -295,8 +207,10 @@ export default function TakeExamScreen() {
             }
           }
           
+          console.log(`[TakeExam] Question ${q.id} raw options:`, q.options);
           console.log(`[TakeExam] Question ${q.id} processed options:`, processedOptions);
-          console.log(`[TakeExam] Question ${q.id} processed options length:`, processedOptions.length);
+          console.log(`[TakeExam] Question ${q.id} options type:`, typeof q.options);
+          console.log(`[TakeExam] Question ${q.id} options isArray:`, Array.isArray(q.options));
           
           return {
             id: q.id,
@@ -315,7 +229,7 @@ export default function TakeExamScreen() {
       setTimeRemaining(examData.duration_minutes * 60); // Convert to seconds
 
       // Create or get existing submission
-      await createSubmission(examData.id, examData.allowed_attempts);
+      await createSubmission(examData.id);
 
     } catch (err) {
       console.error('[TakeExam] Error in fetchExamData:', err);
@@ -323,7 +237,7 @@ export default function TakeExamScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [examId, user?.id, user?.gradeLevel, createSubmission]);
+  }, [examId, user?.id, createSubmission]);
 
 
 
@@ -438,10 +352,8 @@ export default function TakeExamScreen() {
   }, [submissionId, examData, answers, user?.id]);
 
   useEffect(() => {
-    if (examId && user?.id) {
-      fetchExamData();
-    }
-  }, [examId, user?.id, user?.gradeLevel, fetchExamData]);
+    fetchExamData();
+  }, [fetchExamData]);
 
   useEffect(() => {
     if (!examData) return;
@@ -582,26 +494,15 @@ export default function TakeExamScreen() {
         <View style={styles.answersContainer}>
           {currentQuestion.type === 'MCQ' && (
             <View style={styles.multipleChoiceContainer}>
-              {currentQuestion.options && Array.isArray(currentQuestion.options) && currentQuestion.options.length > 0 ? (
+              {currentQuestion.options && currentQuestion.options.length > 0 ? (
                 currentQuestion.options.map((option, index) => {
                   // Handle both object format {key: 'A', text: 'Answer'} and string format
-                  let optionKey: string;
-                  let optionText: string;
-                  
-                  if (typeof option === 'object' && option !== null) {
-                    optionKey = option.key || String.fromCharCode(65 + index);
-                    optionText = option.text || `Option ${index + 1}`;
-                  } else if (typeof option === 'string') {
-                    optionKey = String.fromCharCode(65 + index); // A, B, C, D
-                    optionText = option;
-                  } else {
-                    optionKey = String.fromCharCode(65 + index);
-                    optionText = String(option) || `Option ${index + 1}`;
-                  }
+                  const optionKey = typeof option === 'object' ? option.key : String.fromCharCode(65 + index); // A, B, C, D
+                  const optionText = typeof option === 'object' ? option.text : option;
                   
                   return (
                     <TouchableOpacity
-                      key={`option-${index}`}
+                      key={index}
                       style={[
                         styles.optionButton,
                         answers[currentQuestion.id] === index && styles.optionButtonSelected
@@ -630,19 +531,8 @@ export default function TakeExamScreen() {
                 })
               ) : (
                 <View style={styles.noOptionsContainer}>
-                  <Text style={styles.noOptionsText}>No options available</Text>
-                  <Text style={styles.debugText}>
-                    Question ID: {currentQuestion.id} | Type: {currentQuestion.type}
-                  </Text>
-                  <Text style={styles.debugText}>
-                    Raw Options: {JSON.stringify(currentQuestion.options)}
-                  </Text>
-                  <Text style={styles.debugText}>
-                    Options Type: {typeof currentQuestion.options} | IsArray: {Array.isArray(currentQuestion.options)?.toString()}
-                  </Text>
-                  <Text style={styles.debugText}>
-                    Options Length: {Array.isArray(currentQuestion.options) ? currentQuestion.options.length : 'N/A'}
-                  </Text>
+                  <Text style={styles.noOptionsText}>No options available for this question</Text>
+                  <Text style={styles.debugText}>Debug: {JSON.stringify(currentQuestion.options)}</Text>
                 </View>
               )}
             </View>
