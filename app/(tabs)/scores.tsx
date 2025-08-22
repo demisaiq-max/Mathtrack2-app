@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react-native';
@@ -43,7 +44,10 @@ export default function ScoresScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <SafeAreaView 
+        style={[styles.container, { backgroundColor: colors.background }]} 
+        edges={Platform.OS === 'android' ? ['top', 'left', 'right'] : ['top']}
+      >
         <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <Text style={[styles.title, { color: colors.text }]}>{t('scoreManager')}</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('trackPerformance')}</Text>
@@ -58,7 +62,10 @@ export default function ScoresScreen() {
 
   if (error) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <SafeAreaView 
+        style={[styles.container, { backgroundColor: colors.background }]} 
+        edges={Platform.OS === 'android' ? ['top', 'left', 'right'] : ['top']}
+      >
         <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <Text style={[styles.title, { color: colors.text }]}>{t('scoreManager')}</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('trackPerformance')}</Text>
@@ -78,7 +85,10 @@ export default function ScoresScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView 
+      style={[styles.container, { backgroundColor: colors.background }]} 
+      edges={Platform.OS === 'android' ? ['top', 'left', 'right'] : ['top']}
+    >
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <Text style={[styles.title, { color: colors.text }]}>{t('scoreManager')}</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('trackPerformance')}</Text>

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TrendingUp, Calendar, Clock, BookOpen, Play, CheckCircle } from 'lucide-react-native';
@@ -424,7 +425,10 @@ export default function HomeScreen() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <SafeAreaView style={dynamicStyles.container} edges={['top']}>
+      <SafeAreaView 
+        style={dynamicStyles.container} 
+        edges={Platform.OS === 'android' ? ['top', 'left', 'right'] : ['top']}
+      >
         <View style={dynamicStyles.header}>
           <View>
             <Text style={dynamicStyles.greeting}>{t('welcomeBack')}, {user?.fullName?.split(' ')[0] || t('studentRole')}!</Text>

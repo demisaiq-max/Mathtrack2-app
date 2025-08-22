@@ -9,6 +9,7 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Heart, MessageCircle, AlertCircle, Send, Trash2 } from 'lucide-react-native';
@@ -491,7 +492,10 @@ export default function BoardScreen() {
   const isLoading = announcementsQuery.isLoading || questionsQuery.isLoading || profileGradeQuery.isLoading;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView 
+      style={[styles.container, { backgroundColor: colors.background }]} 
+      edges={Platform.OS === 'android' ? ['top', 'left', 'right'] : ['top']}
+    >
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <Text style={[styles.title, { color: colors.text }]} testID="board-title">{t('board')}</Text>
         <TouchableOpacity
