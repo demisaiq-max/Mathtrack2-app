@@ -31,6 +31,9 @@ export default function LandingScreen() {
       } else {
         router.replace('/(tabs)/home' as any);
       }
+    } else if (!isLoading && !user) {
+      // Reset redirect flag when user is logged out
+      hasRedirected.current = false;
     }
   }, [user, isLoading, router]);
 
