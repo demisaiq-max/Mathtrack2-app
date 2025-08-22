@@ -54,7 +54,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         }
       }
     } catch (error) {
-      console.error('Error loading user:', error);
+      console.error('[Auth] Error loading user:', error);
+      if (error instanceof Error) {
+        console.error('[Auth] Load user error message:', error.message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -244,7 +247,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   }, []);
 
   const refreshUser = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log('[Auth] No user ID available for refresh');
+      return;
+    }
     
     try {
       console.log('[Auth] Refreshing user data for ID:', user.id);
@@ -254,7 +260,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         .eq('id', user.id)
         .single();
       
-      if (profile && !error) {
+      if (error) {
+        console.error('[Auth] Supabase error refreshing profile:');
+        console.error('[Auth] Error code:', error.code);
+        console.error('[Auth] Error message:', error.message);
+        console.error('[Auth] Error details:', error.details);
+        console.error('[Auth] Error hint:', error.hint);
+        console.error('[Auth] Full error object:', JSON.stringify(error, null, 2));
+        return;
+      }
+      
+      if (profile) {
         console.log('[Auth] Refreshed profile data:', profile);
         console.log('[Auth] Profile image from DB:', profile.profile_image);
         const userData: User = {
@@ -271,10 +287,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         setUser(userData);
         await AsyncStorage.setItem('user', JSON.stringify(userData));
       } else {
-        console.error('[Auth] Error refreshing profile:', error);
+        console.error('[Auth] No profile data returned from database');
       }
     } catch (error) {
-      console.error('[Auth] Refresh user error:', error);
+      console.error('[Auth] Exception during refresh user:');
+      if (error instanceof Error) {
+        console.error('[Auth] Error name:', error.name);
+        console.error('[Auth] Error message:', error.message);
+        console.error('[Auth] Error stack:', error.stack);
+      } else {
+        console.error('[Auth] Unknown error type:', typeof error);
+        console.error('[Auth] Error value:', error);
+      }
+      console.error('[Auth] Full error object:', JSON.stringify(error, null, 2));
     }
   }, [user?.id]);
 
