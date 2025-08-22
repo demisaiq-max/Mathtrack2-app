@@ -241,7 +241,7 @@ export default function AdminProfile() {
       icon: Calendar,
       title: t('schedule'),
       subtitle: 'Manage your schedule and appointments',
-      onPress: () => setActiveTab('schedule'),
+      onPress: () => router.push('/schedule-management'),
     },
     {
       icon: User,

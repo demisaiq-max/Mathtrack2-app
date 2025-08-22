@@ -18,6 +18,7 @@ import { useAdmin } from '@/hooks/admin-context';
 import { useTheme } from '@/hooks/theme-context';
 import { useLanguage } from '@/hooks/language-context';
 import { useAuth } from '@/hooks/auth-context';
+import { useSchedules } from '@/hooks/useSchedules';
 import { supabase } from '@/config/supabase';
 
 // These will be translated dynamically
@@ -79,6 +80,7 @@ export default function AdminDashboard() {
   const { colors, isDark } = useTheme();
   const { t } = useLanguage();
   const { uploadLectureNote, saveExamReport, lectureNotes, examReports, pendingSubmissionsCount, submissions } = useAdmin();
+  const { schedules, getTodaySchedules } = useSchedules();
   const [showImportModal, setShowImportModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [lectureTitle, setLectureTitle] = useState('');
@@ -558,23 +560,22 @@ export default function AdminDashboard() {
     },
   ];
 
-  const todaySchedule = [
-    {
-      id: '1',
-      title: 'Calculus Quiz',
-      time: '2:00 PM - Grade 12',
-    },
-    {
-      id: '2',
-      title: 'Physics Lab Test',
-      time: '3:30 PM - Grade 11',
-    },
-    {
-      id: '3',
-      title: 'Staff Meeting',
-      time: '4:00 PM - Conference Room',
-    },
-  ];
+  const todaySchedules = getTodaySchedules();
+  
+  const formatScheduleTime = (startTime: string, endTime: string, gradeLevel?: number, location?: string) => {
+    const formatTime = (time: string) => {
+      const [hours, minutes] = time.split(':');
+      const hour = parseInt(hours);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour % 12 || 12;
+      return `${displayHour}:${minutes} ${ampm}`;
+    };
+    
+    let timeStr = `${formatTime(startTime)} - ${formatTime(endTime)}`;
+    if (gradeLevel) timeStr += ` - Grade ${gradeLevel}`;
+    if (location) timeStr += ` - ${location}`;
+    return timeStr;
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -793,25 +794,39 @@ export default function AdminDashboard() {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('todaysSchedule')}</Text>
             <TouchableOpacity 
               style={styles.viewAllButton}
-              onPress={() => router.push('/(admin)/profile')}
+              onPress={() => router.push('/schedule-management')}
             >
               <Text style={styles.viewAllText}>{t('manageSchedule')}</Text>
             </TouchableOpacity>
           </View>
           <View style={[styles.scheduleContainer, { backgroundColor: colors.surface }]}>
-            {todaySchedule.map((item) => (
-              <TouchableOpacity 
-                key={item.id} 
-                style={styles.scheduleItem}
-                onPress={() => router.push('/(admin)/profile')}
-              >
-                <View style={styles.scheduleDot} />
-                <View style={styles.scheduleContent}>
-                  <Text style={[styles.scheduleTitle, { color: colors.text }]}>{item.title}</Text>
-                  <Text style={[styles.scheduleTime, { color: colors.textSecondary }]}>{item.time}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {todaySchedules.length > 0 ? (
+              todaySchedules.map((item: any) => (
+                <TouchableOpacity 
+                  key={item.id} 
+                  style={styles.scheduleItem}
+                  onPress={() => router.push('/schedule-management')}
+                >
+                  <View style={styles.scheduleDot} />
+                  <View style={styles.scheduleContent}>
+                    <Text style={[styles.scheduleTitle, { color: colors.text }]}>{item.title}</Text>
+                    <Text style={[styles.scheduleTime, { color: colors.textSecondary }]}>
+                      {formatScheduleTime(item.start_time, item.end_time, item.grade_level || undefined, item.location || undefined)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyScheduleContainer}>
+                <Text style={[styles.emptyScheduleText, { color: colors.textSecondary }]}>No schedules for today</Text>
+                <TouchableOpacity 
+                  style={[styles.addScheduleButton, { backgroundColor: colors.primary }]}
+                  onPress={() => router.push('/schedule-management')}
+                >
+                  <Text style={[styles.addScheduleButtonText, { color: colors.primaryText }]}>Add Schedule</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </View>
 
@@ -1470,6 +1485,26 @@ const styles = StyleSheet.create({
   },
   scheduleTime: {
     fontSize: 12,
+  },
+  emptyScheduleContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    gap: 12,
+  },
+  emptyScheduleText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  addScheduleButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#4F46E5',
+  },
+  addScheduleButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   performanceContainer: {
     borderRadius: 12,
