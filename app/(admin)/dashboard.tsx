@@ -561,6 +561,7 @@ export default function AdminDashboard() {
   ];
 
   const todaySchedules = getTodaySchedules();
+  const recentSchedules = schedules.slice(0, 3);
   
   const formatScheduleTime = (startTime: string, endTime: string, gradeLevel?: number, location?: string) => {
     const formatTime = (time: string) => {
@@ -788,10 +789,10 @@ export default function AdminDashboard() {
           </View>
         </View>
 
-        {/* Today's Schedule */}
+        {/* Recent Schedules */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderWithAction}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('todaysSchedule')}</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Schedules</Text>
             <TouchableOpacity 
               style={styles.viewAllButton}
               onPress={() => router.push('/schedule-management')}
@@ -800,8 +801,8 @@ export default function AdminDashboard() {
             </TouchableOpacity>
           </View>
           <View style={[styles.scheduleContainer, { backgroundColor: colors.surface }]}>
-            {todaySchedules.length > 0 ? (
-              todaySchedules.map((item: any) => (
+            {recentSchedules.length > 0 ? (
+              recentSchedules.map((item: any) => (
                 <TouchableOpacity 
                   key={item.id} 
                   style={styles.scheduleItem}
@@ -813,12 +814,15 @@ export default function AdminDashboard() {
                     <Text style={[styles.scheduleTime, { color: colors.textSecondary }]}>
                       {formatScheduleTime(item.start_time, item.end_time, item.grade_level || undefined, item.location || undefined)}
                     </Text>
+                    <Text style={[styles.scheduleDate, { color: colors.textSecondary }]}>
+                      {new Date(item.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                    </Text>
                   </View>
                 </TouchableOpacity>
               ))
             ) : (
               <View style={styles.emptyScheduleContainer}>
-                <Text style={[styles.emptyScheduleText, { color: colors.textSecondary }]}>No schedules for today</Text>
+                <Text style={[styles.emptyScheduleText, { color: colors.textSecondary }]}>No schedules created yet</Text>
                 <TouchableOpacity 
                   style={[styles.addScheduleButton, { backgroundColor: colors.primary }]}
                   onPress={() => router.push('/schedule-management')}
@@ -1485,6 +1489,10 @@ const styles = StyleSheet.create({
   },
   scheduleTime: {
     fontSize: 12,
+  },
+  scheduleDate: {
+    fontSize: 11,
+    marginTop: 2,
   },
   emptyScheduleContainer: {
     alignItems: 'center',
