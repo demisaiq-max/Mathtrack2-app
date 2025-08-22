@@ -127,13 +127,13 @@ export default function AdminProfile() {
             try {
               console.log('[AdminProfile] Logout initiated');
               await logout();
-              console.log('[AdminProfile] Logout successful, redirecting to index');
-              // Use router.push instead of replace to ensure proper navigation
-              router.push('/');
+              console.log('[AdminProfile] Logout successful, redirecting to login');
+              // Navigate directly to login page after logout
+              router.replace('/(auth)/login');
             } catch (error) {
               console.error('[AdminProfile] Logout error:', error);
               // Even if logout fails, try to navigate to login
-              router.push('/(auth)/login');
+              router.replace('/(auth)/login');
             }
           },
         },

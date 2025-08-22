@@ -48,13 +48,13 @@ export default function ProfileScreen() {
     try {
       console.log('[Profile] Logout initiated');
       await logout();
-      console.log('[Profile] Logout successful, redirecting to index');
-      // Use router.push instead of replace to ensure proper navigation
-      router.push('/');
+      console.log('[Profile] Logout successful, redirecting to login');
+      // Navigate directly to login page after logout
+      router.replace('/(auth)/login');
     } catch (error) {
       console.error('[Profile] Logout error:', error);
       // Even if logout fails, try to navigate to login
-      router.push('/(auth)/login');
+      router.replace('/(auth)/login');
     }
   };
 
