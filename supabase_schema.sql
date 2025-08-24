@@ -390,6 +390,9 @@ create policy "forum_question_read_same_grade" on public.questions
   for select using (
     exists (
       select 1 from public.profiles sp where sp.id = auth.uid() and sp.grade_level = questions.grade_level
+    ) or
+    exists (
+      select 1 from public.profiles sp where sp.id = auth.uid() and sp.role = 'admin'
     )
   );
 -- Allow authors to update/delete their own questions
@@ -400,8 +403,16 @@ create policy "forum_question_delete_own" on public.questions
   for delete using (author_id = auth.uid());
 -- Allow admins to manage all questions
 create policy "forum_question_admin_manage" on public.questions
-  for all using ((select role from public.profiles where id = auth.uid()) = 'admin')
-  with check ((select role from public.profiles where id = auth.uid()) = 'admin');
+  for all using (
+    exists (
+      select 1 from public.profiles sp where sp.id = auth.uid() and sp.role = 'admin'
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.profiles sp where sp.id = auth.uid() and sp.role = 'admin'
+    )
+  );
 create policy "forum_interact_read_grade" on public.question_likes
   for select using (
     exists (
