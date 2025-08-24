@@ -8,6 +8,8 @@ import {
   Alert,
   TextInput,
   Modal,
+  Platform,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -26,6 +28,7 @@ import {
   MessageSquare,
   Settings,
 } from 'lucide-react-native';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { useTheme } from '@/hooks/theme-context';
 import { useSchedules, Schedule, ScheduleFormData } from '@/hooks/useSchedules';
 
@@ -56,6 +59,7 @@ export default function ScheduleManagement() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleAddSchedule = () => {
@@ -153,44 +157,7 @@ export default function ScheduleManagement() {
     }
   };
 
-  const generateDateOptions = () => {
-    const options = [];
-    const today = new Date();
-    
-    // Generate next 90 days
-    for (let i = 0; i < 90; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      
-      const value = date.toISOString().split('T')[0];
-      const label = date.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
-      });
-      
-      options.push({ value, label });
-    }
-    
-    return options;
-  };
 
-  const generateTimeOptions = () => {
-    const options = [];
-    
-    for (let hour = 6; hour <= 22; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const timeValue = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        const displayHour = hour % 12 || 12;
-        const ampm = hour >= 12 ? 'PM' : 'AM';
-        const timeLabel = `${displayHour}:${minute.toString().padStart(2, '0')} ${ampm}`;
-        options.push({ value: timeValue, label: timeLabel });
-      }
-    }
-    
-    return options;
-  };
 
   const todaySchedules = getTodaySchedules();
 
@@ -484,41 +451,56 @@ export default function ScheduleManagement() {
 
             <View style={styles.formGroup}>
               <Text style={[styles.formLabel, { color: colors.text }]}>Date *</Text>
-              <TouchableOpacity
+              <Pressable
                 style={[styles.formInput, styles.datePickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                onPress={() => setShowDatePicker(true)}
+                onPress={() => {
+                  setShowDatePicker(true);
+                }}
               >
-                <Text style={[styles.datePickerText, { color: formData.date ? colors.text : colors.textSecondary }]}>
-                  {formData.date ? formatDate(formData.date) : 'Select Date'}
-                </Text>
+                <TextInput
+                  style={[styles.datePickerText, { color: formData.date ? colors.text : colors.textSecondary }]}
+                  value={formData.date ? formatDate(formData.date) : 'Select Date'}
+                  editable={false}
+                  pointerEvents="none"
+                />
                 <Calendar size={16} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.formRow}>
               <View style={styles.formGroupHalf}>
                 <Text style={[styles.formLabel, { color: colors.text }]}>Start Time *</Text>
-                <TouchableOpacity
+                <Pressable
                   style={[styles.formInput, styles.timePickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                  onPress={() => setShowStartTimePicker(true)}
+                  onPress={() => {
+                    setShowStartTimePicker(true);
+                  }}
                 >
-                  <Text style={[styles.timePickerText, { color: formData.start_time ? colors.text : colors.textSecondary }]}>
-                    {formData.start_time ? formatTime(formData.start_time) : 'Start Time'}
-                  </Text>
+                  <TextInput
+                    style={[styles.timePickerText, { color: formData.start_time ? colors.text : colors.textSecondary }]}
+                    value={formData.start_time ? formatTime(formData.start_time) : 'Start Time'}
+                    editable={false}
+                    pointerEvents="none"
+                  />
                   <Clock size={16} color={colors.textSecondary} />
-                </TouchableOpacity>
+                </Pressable>
               </View>
               <View style={styles.formGroupHalf}>
                 <Text style={[styles.formLabel, { color: colors.text }]}>End Time *</Text>
-                <TouchableOpacity
+                <Pressable
                   style={[styles.formInput, styles.timePickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                  onPress={() => setShowEndTimePicker(true)}
+                  onPress={() => {
+                    setShowEndTimePicker(true);
+                  }}
                 >
-                  <Text style={[styles.timePickerText, { color: formData.end_time ? colors.text : colors.textSecondary }]}>
-                    {formData.end_time ? formatTime(formData.end_time) : 'End Time'}
-                  </Text>
+                  <TextInput
+                    style={[styles.timePickerText, { color: formData.end_time ? colors.text : colors.textSecondary }]}
+                    value={formData.end_time ? formatTime(formData.end_time) : 'End Time'}
+                    editable={false}
+                    pointerEvents="none"
+                  />
                   <Clock size={16} color={colors.textSecondary} />
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
 
@@ -547,146 +529,58 @@ export default function ScheduleManagement() {
         </SafeAreaView>
       </Modal>
 
-      {/* Date Picker Modal */}
-      <Modal
-        visible={showDatePicker}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowDatePicker(false)}
-      >
-        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Date</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowDatePicker(false)}
-            >
-              <X size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView style={styles.pickerScrollView} showsVerticalScrollIndicator={false}>
-            <View style={styles.pickerOptionsContainer}>
-              {generateDateOptions().map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.pickerOption,
-                    { backgroundColor: colors.surface, borderColor: colors.border },
-                    formData.date === option.value && [styles.pickerOptionSelected, { backgroundColor: colors.primary, borderColor: colors.primary }]
-                  ]}
-                  onPress={() => {
-                    setFormData(prev => ({ ...prev, date: option.value }));
-                    setShowDatePicker(false);
-                  }}
-                >
-                  <Text style={[
-                    styles.pickerOptionText,
-                    { color: colors.text },
-                    formData.date === option.value && { color: colors.primaryText, fontWeight: '600' }
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+      {/* Cross-Platform Date Picker */}
+      <DateTimePickerModal
+        isVisible={showDatePicker}
+        mode="date"
+        onConfirm={(selectedDate) => {
+          const dateString = selectedDate.toISOString().split('T')[0];
+          setFormData(prev => ({ ...prev, date: dateString }));
+          setShowDatePicker(false);
+          console.log('[DatePicker] Date selected:', dateString);
+        }}
+        onCancel={() => setShowDatePicker(false)}
+        date={formData.date ? new Date(formData.date) : new Date()}
+        minimumDate={new Date()}
+        maximumDate={new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)} // 1 year from now
+        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+        textColor={colors.text}
+        isDarkModeEnabled={isDark}
+      />
 
-      {/* Start Time Picker Modal */}
-      <Modal
-        visible={showStartTimePicker}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowStartTimePicker(false)}
-      >
-        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Start Time</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowStartTimePicker(false)}
-            >
-              <X size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView style={styles.pickerScrollView} showsVerticalScrollIndicator={false}>
-            <View style={styles.pickerOptionsContainer}>
-              {generateTimeOptions().map((time) => (
-                <TouchableOpacity
-                  key={time.value}
-                  style={[
-                    styles.pickerOption,
-                    { backgroundColor: colors.surface, borderColor: colors.border },
-                    formData.start_time === time.value && [styles.pickerOptionSelected, { backgroundColor: colors.primary, borderColor: colors.primary }]
-                  ]}
-                  onPress={() => {
-                    setFormData(prev => ({ ...prev, start_time: time.value }));
-                    setShowStartTimePicker(false);
-                  }}
-                >
-                  <Text style={[
-                    styles.pickerOptionText,
-                    { color: colors.text },
-                    formData.start_time === time.value && { color: colors.primaryText, fontWeight: '600' }
-                  ]}>
-                    {time.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+      {/* Cross-Platform Start Time Picker */}
+      <DateTimePickerModal
+        isVisible={showStartTimePicker}
+        mode="time"
+        onConfirm={(selectedTime) => {
+          const timeString = selectedTime.toTimeString().slice(0, 5); // HH:MM format
+          setFormData(prev => ({ ...prev, start_time: timeString }));
+          setShowStartTimePicker(false);
+          console.log('[TimePicker] Start time selected:', timeString);
+        }}
+        onCancel={() => setShowStartTimePicker(false)}
+        date={formData.start_time ? new Date(`2000-01-01T${formData.start_time}:00`) : new Date()}
+        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+        textColor={colors.text}
+        isDarkModeEnabled={isDark}
+      />
 
-      {/* End Time Picker Modal */}
-      <Modal
-        visible={showEndTimePicker}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowEndTimePicker(false)}
-      >
-        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Select End Time</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowEndTimePicker(false)}
-            >
-              <X size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView style={styles.pickerScrollView} showsVerticalScrollIndicator={false}>
-            <View style={styles.pickerOptionsContainer}>
-              {generateTimeOptions().map((time) => (
-                <TouchableOpacity
-                  key={time.value}
-                  style={[
-                    styles.pickerOption,
-                    { backgroundColor: colors.surface, borderColor: colors.border },
-                    formData.end_time === time.value && [styles.pickerOptionSelected, { backgroundColor: colors.primary, borderColor: colors.primary }]
-                  ]}
-                  onPress={() => {
-                    setFormData(prev => ({ ...prev, end_time: time.value }));
-                    setShowEndTimePicker(false);
-                  }}
-                >
-                  <Text style={[
-                    styles.pickerOptionText,
-                    { color: colors.text },
-                    formData.end_time === time.value && { color: colors.primaryText, fontWeight: '600' }
-                  ]}>
-                    {time.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
+      {/* Cross-Platform End Time Picker */}
+      <DateTimePickerModal
+        isVisible={showEndTimePicker}
+        mode="time"
+        onConfirm={(selectedTime) => {
+          const timeString = selectedTime.toTimeString().slice(0, 5); // HH:MM format
+          setFormData(prev => ({ ...prev, end_time: timeString }));
+          setShowEndTimePicker(false);
+          console.log('[TimePicker] End time selected:', timeString);
+        }}
+        onCancel={() => setShowEndTimePicker(false)}
+        date={formData.end_time ? new Date(`2000-01-01T${formData.end_time}:00`) : new Date()}
+        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+        textColor={colors.text}
+        isDarkModeEnabled={isDark}
+      />
     </SafeAreaView>
   );
 }
