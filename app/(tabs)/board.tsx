@@ -563,44 +563,61 @@ export default function BoardScreen() {
             const userLiked = isAnnouncement
               ? !!(item as AnnouncementRow).announcement_likes?.some(l => l.user_id === user?.id)
               : !!(item as QuestionRow).question_likes?.some(l => l.user_id === user?.id);
+            const questionItem = item as QuestionRow;
+            const announcementItem = item as AnnouncementRow;
+            const canDelete = isAdmin || (!isAnnouncement && questionItem.author_id === user?.id);
+            
+            // Debug logging for delete button visibility
+            if (!isAnnouncement) {
+              console.log('[Board] Question delete check:', {
+                questionId: questionItem.id,
+                authorId: questionItem.author_id,
+                currentUserId: user?.id,
+                isAdmin,
+                canDelete,
+                userIdType: typeof user?.id,
+                authorIdType: typeof questionItem.author_id
+              });
+            }
+            
             return (
               <View key={item.id} style={[styles.postCard, { backgroundColor: colors.surface }]} testID={`post-${item.id}`}>
                 <View style={styles.postHeader}>
                   <View style={styles.postMeta}>
-                    <Text style={[styles.postTitle, { color: colors.text }]}>{isAnnouncement ? (item as AnnouncementRow).title : (item as QuestionRow).title}</Text>
+                    <Text style={[styles.postTitle, { color: colors.text }]}>{isAnnouncement ? announcementItem.title : questionItem.title}</Text>
                     <View style={styles.badgeContainer}>
                       {isAnnouncement && (
                         <View
                           style={[
                             styles.priorityBadge,
-                            { backgroundColor: getPriorityBg((item as AnnouncementRow).priority) },
+                            { backgroundColor: getPriorityBg(announcementItem.priority) },
                           ]}
                         >
                           <Text
                             style={[
                               styles.priorityText,
-                              { color: getPriorityColor((item as AnnouncementRow).priority) },
+                              { color: getPriorityColor(announcementItem.priority) },
                             ]}
                           >
-                            {(item as AnnouncementRow).priority}
+                            {announcementItem.priority}
                           </Text>
                         </View>
                       )}
                       <View style={[styles.gradeBadge, { backgroundColor: colors.primary + '20' }]}>
                         <Text style={[styles.gradeText, { color: colors.primary }]}>
-                          Grade {isAnnouncement ? (item as AnnouncementRow).grade_level : (item as QuestionRow).grade_level}
+                          Grade {isAnnouncement ? announcementItem.grade_level : questionItem.grade_level}
                         </Text>
                       </View>
                     </View>
                   </View>
                   <View style={styles.headerActions}>
-                    {isAnnouncement && (item as AnnouncementRow).priority === 'urgent' && (
+                    {isAnnouncement && announcementItem.priority === 'urgent' && (
                       <AlertCircle color="#EF4444" size={20} />
                     )}
-                    {(isAdmin || (!isAnnouncement && (item as QuestionRow).author_id === user?.id)) && (
+                    {canDelete && (
                       <TouchableOpacity
                         style={styles.deleteButton}
-                        onPress={() => handleDelete(activeTab, item.id, !isAnnouncement ? (item as QuestionRow).author_id : undefined)}
+                        onPress={() => handleDelete(activeTab, item.id, !isAnnouncement ? questionItem.author_id : undefined)}
                         testID={`delete-${item.id}`}
                       >
                         <Trash2 color="#EF4444" size={18} />
