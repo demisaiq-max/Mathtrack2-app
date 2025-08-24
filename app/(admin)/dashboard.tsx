@@ -80,7 +80,7 @@ export default function AdminDashboard() {
   const { colors, isDark } = useTheme();
   const { t } = useLanguage();
   const { uploadLectureNote, saveExamReport, lectureNotes, examReports, pendingSubmissionsCount, submissions } = useAdmin();
-  const { schedules, getTodaySchedules } = useSchedules();
+  const { schedules, getTodaySchedules, loadSchedules } = useSchedules();
   const [showImportModal, setShowImportModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [lectureTitle, setLectureTitle] = useState('');
@@ -363,7 +363,24 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadAnnouncements();
-  }, []);
+    // Force refresh schedules when dashboard loads
+    if (loadSchedules) {
+      console.log('[AdminDashboard] Force refreshing schedules on mount');
+      loadSchedules();
+    }
+  }, [loadSchedules]);
+
+  // Add periodic refresh for schedules
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (loadSchedules) {
+        console.log('[AdminDashboard] Periodic schedule refresh');
+        loadSchedules();
+      }
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [loadSchedules]);
 
   // Calculate performance metrics based on actual data
   const performanceMetrics = useMemo(() => {
@@ -562,6 +579,16 @@ export default function AdminDashboard() {
 
   const todaySchedules = getTodaySchedules();
   const recentSchedules = schedules.slice(0, 3);
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('[AdminDashboard] Schedules state updated:', {
+      totalSchedules: schedules.length,
+      todaySchedules: todaySchedules.length,
+      recentSchedules: recentSchedules.length,
+      scheduleIds: schedules.map(s => s.id)
+    });
+  }, [schedules.length, todaySchedules.length, recentSchedules.length]);
   
   const formatScheduleTime = (startTime: string, endTime: string, gradeLevel?: number, location?: string) => {
     const formatTime = (time: string) => {
@@ -795,7 +822,10 @@ export default function AdminDashboard() {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Schedules</Text>
             <TouchableOpacity 
               style={styles.viewAllButton}
-              onPress={() => router.push('/schedule-management')}
+              onPress={() => {
+                console.log('[AdminDashboard] Navigating to schedule management');
+                router.push('/schedule-management');
+              }}
             >
               <Text style={styles.viewAllText}>{t('manageSchedule')}</Text>
             </TouchableOpacity>

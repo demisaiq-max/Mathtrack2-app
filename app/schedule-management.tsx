@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -56,6 +56,7 @@ export default function ScheduleManagement() {
   const [showDateModal, setShowDateModal] = useState(false);
   const [showStartTimeModal, setShowStartTimeModal] = useState(false);
   const [showEndTimeModal, setShowEndTimeModal] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleAddSchedule = () => {
     setEditingSchedule(null);
@@ -116,6 +117,8 @@ export default function ScheduleManagement() {
     if (success) {
       setShowModal(false);
       setEditingSchedule(null);
+      // Force refresh the component
+      setRefreshKey(prev => prev + 1);
     }
   };
 
@@ -192,6 +195,11 @@ export default function ScheduleManagement() {
       monthName: firstDay.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     };
   };
+
+  // Force refresh when schedules change
+  useEffect(() => {
+    console.log('[ScheduleManagement] Schedules updated:', schedules.length);
+  }, [schedules.length, refreshKey]);
 
   const generateTimeOptions = () => {
     const options = [];
@@ -563,7 +571,7 @@ export default function ScheduleManagement() {
       <Modal
         visible={showDateModal}
         animationType="slide"
-        presentationStyle="pageSheet"
+        presentationStyle="fullScreen"
         onRequestClose={() => setShowDateModal(false)}
       >
         <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
@@ -577,7 +585,7 @@ export default function ScheduleManagement() {
             </TouchableOpacity>
           </View>
           
-          <View style={styles.calendarContainer}>
+          <ScrollView style={styles.calendarContainer} showsVerticalScrollIndicator={false}>
             {(() => {
               const { days, monthName } = generateCalendarDays();
               return (
@@ -627,7 +635,7 @@ export default function ScheduleManagement() {
                 </>
               );
             })()}
-          </View>
+          </ScrollView>
         </SafeAreaView>
       </Modal>
 
@@ -635,7 +643,7 @@ export default function ScheduleManagement() {
       <Modal
         visible={showStartTimeModal}
         animationType="slide"
-        presentationStyle="pageSheet"
+        presentationStyle="fullScreen"
         onRequestClose={() => setShowStartTimeModal(false)}
       >
         <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
@@ -682,7 +690,7 @@ export default function ScheduleManagement() {
       <Modal
         visible={showEndTimeModal}
         animationType="slide"
-        presentationStyle="pageSheet"
+        presentationStyle="fullScreen"
         onRequestClose={() => setShowEndTimeModal(false)}
       >
         <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>

@@ -105,7 +105,14 @@ export function useSchedules() {
       }
 
       console.log('[useSchedules] Schedule created successfully:', data.id);
-      await loadSchedules();
+      // Force immediate refresh
+      setSchedules(prev => [...prev, data].sort((a, b) => {
+        const dateCompare = a.date.localeCompare(b.date);
+        if (dateCompare !== 0) return dateCompare;
+        return a.start_time.localeCompare(b.start_time);
+      }));
+      // Also reload from database to ensure consistency
+      setTimeout(() => loadSchedules(), 100);
       Alert.alert('Success', 'Schedule created successfully!');
       return true;
     } catch (err) {
@@ -155,7 +162,14 @@ export function useSchedules() {
       }
 
       console.log('[useSchedules] Schedule updated successfully:', data.id);
-      await loadSchedules();
+      // Force immediate refresh
+      setSchedules(prev => prev.map(s => s.id === data.id ? data : s).sort((a, b) => {
+        const dateCompare = a.date.localeCompare(b.date);
+        if (dateCompare !== 0) return dateCompare;
+        return a.start_time.localeCompare(b.start_time);
+      }));
+      // Also reload from database to ensure consistency
+      setTimeout(() => loadSchedules(), 100);
       Alert.alert('Success', 'Schedule updated successfully!');
       return true;
     } catch (err) {
@@ -194,7 +208,10 @@ export function useSchedules() {
       }
 
       console.log('[useSchedules] Schedule deleted successfully');
-      await loadSchedules();
+      // Force immediate refresh
+      setSchedules(prev => prev.filter(s => s.id !== id));
+      // Also reload from database to ensure consistency
+      setTimeout(() => loadSchedules(), 100);
       Alert.alert('Success', 'Schedule deleted successfully!');
       return true;
     } catch (err) {
@@ -225,6 +242,14 @@ export function useSchedules() {
   useEffect(() => {
     loadSchedules();
   }, [loadSchedules]);
+
+  // Force refresh schedules when user changes
+  useEffect(() => {
+    if (user?.id) {
+      console.log('[useSchedules] User changed, reloading schedules');
+      loadSchedules();
+    }
+  }, [user?.id, loadSchedules]);
 
   return {
     schedules,
