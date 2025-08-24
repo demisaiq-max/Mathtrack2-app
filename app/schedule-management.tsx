@@ -542,10 +542,16 @@ export default function ScheduleManagement() {
         onCancel={() => setShowDatePicker(false)}
         date={formData.date ? new Date(formData.date) : new Date()}
         minimumDate={new Date()}
-        maximumDate={new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)} // 1 year from now
+        maximumDate={new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)}
         display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-        textColor={colors.text}
         isDarkModeEnabled={isDark}
+        confirmTextIOS="Confirm"
+        cancelTextIOS="Cancel"
+        customHeaderIOS={() => (
+          <View style={[styles.pickerHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <Text style={[styles.pickerHeaderText, { color: colors.text }]}>Select Date</Text>
+          </View>
+        )}
       />
 
       {/* Cross-Platform Start Time Picker */}
@@ -553,7 +559,7 @@ export default function ScheduleManagement() {
         isVisible={showStartTimePicker}
         mode="time"
         onConfirm={(selectedTime) => {
-          const timeString = selectedTime.toTimeString().slice(0, 5); // HH:MM format
+          const timeString = selectedTime.toTimeString().slice(0, 5);
           setFormData(prev => ({ ...prev, start_time: timeString }));
           setShowStartTimePicker(false);
           console.log('[TimePicker] Start time selected:', timeString);
@@ -561,8 +567,14 @@ export default function ScheduleManagement() {
         onCancel={() => setShowStartTimePicker(false)}
         date={formData.start_time ? new Date(`2000-01-01T${formData.start_time}:00`) : new Date()}
         display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-        textColor={colors.text}
         isDarkModeEnabled={isDark}
+        confirmTextIOS="Confirm"
+        cancelTextIOS="Cancel"
+        customHeaderIOS={() => (
+          <View style={[styles.pickerHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <Text style={[styles.pickerHeaderText, { color: colors.text }]}>Select Start Time</Text>
+          </View>
+        )}
       />
 
       {/* Cross-Platform End Time Picker */}
@@ -570,7 +582,7 @@ export default function ScheduleManagement() {
         isVisible={showEndTimePicker}
         mode="time"
         onConfirm={(selectedTime) => {
-          const timeString = selectedTime.toTimeString().slice(0, 5); // HH:MM format
+          const timeString = selectedTime.toTimeString().slice(0, 5);
           setFormData(prev => ({ ...prev, end_time: timeString }));
           setShowEndTimePicker(false);
           console.log('[TimePicker] End time selected:', timeString);
@@ -578,8 +590,14 @@ export default function ScheduleManagement() {
         onCancel={() => setShowEndTimePicker(false)}
         date={formData.end_time ? new Date(`2000-01-01T${formData.end_time}:00`) : new Date()}
         display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-        textColor={colors.text}
         isDarkModeEnabled={isDark}
+        confirmTextIOS="Confirm"
+        cancelTextIOS="Cancel"
+        customHeaderIOS={() => (
+          <View style={[styles.pickerHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <Text style={[styles.pickerHeaderText, { color: colors.text }]}>Select End Time</Text>
+          </View>
+        )}
       />
     </SafeAreaView>
   );
@@ -594,11 +612,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: Platform.OS === 'android' ? 12 : 16,
+    paddingTop: Platform.OS === 'android' ? 8 : 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     gap: 12,
+    minHeight: Platform.OS === 'android' ? 64 : 72,
   },
   backButton: {
     width: 40,
@@ -902,6 +922,16 @@ const styles = StyleSheet.create({
   timePickerText: {
     fontSize: 16,
     flex: 1,
+  },
+  pickerHeader: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    alignItems: 'center',
+  },
+  pickerHeaderText: {
+    fontSize: 18,
+    fontWeight: '600',
   },
   pickerScrollView: {
     flex: 1,
