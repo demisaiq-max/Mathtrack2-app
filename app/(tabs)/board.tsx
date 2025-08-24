@@ -366,7 +366,7 @@ export default function BoardScreen() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async ({ type, id }: { type: ActiveTab; id: number }) => {
+    mutationFn: async ({ type, id, authorId }: { type: ActiveTab; id: number; authorId?: string }) => {
       console.log(`[Board] Starting delete for ${type} with id:`, id);
       
       const { data: authData, error: authErr } = await supabase.auth.getUser();
@@ -383,7 +383,7 @@ export default function BoardScreen() {
       
       console.log('[Board] User ID for delete:', uid);
       
-      // Check if user is admin
+      // Check if user is admin or the author of the question
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
@@ -395,12 +395,19 @@ export default function BoardScreen() {
         throw new Error('Unable to verify permissions');
       }
       
-      if (profile?.role !== 'admin') {
-        console.error('[Board] User is not admin:', profile?.role);
-        throw new Error('Only administrators can delete posts');
+      const isAdmin = profile?.role === 'admin';
+      const isAuthor = type === 'qa' && authorId === uid;
+      
+      if (!isAdmin && !isAuthor) {
+        console.error('[Board] User is not admin or author:', { role: profile?.role, isAuthor, authorId, uid });
+        if (type === 'announcements') {
+          throw new Error('Only administrators can delete announcements');
+        } else {
+          throw new Error('You can only delete your own questions');
+        }
       }
       
-      console.log('[Board] User is admin, proceeding with delete');
+      console.log('[Board] User has permission to delete, proceeding with delete');
       
       if (type === 'announcements') {
         console.log('[Board] Deleting announcement with id:', id);
@@ -443,7 +450,7 @@ export default function BoardScreen() {
     },
   });
 
-  const handleDelete = useCallback((type: ActiveTab, id: number) => {
+  const handleDelete = useCallback((type: ActiveTab, id: number, authorId?: string) => {
     console.log(`[Board] Delete requested for ${type} with id:`, id);
     Alert.alert(
       'Confirm Delete',
@@ -459,7 +466,7 @@ export default function BoardScreen() {
           style: 'destructive',
           onPress: () => {
             console.log('[Board] Delete confirmed, executing mutation');
-            deleteMutation.mutate({ type, id });
+            deleteMutation.mutate({ type, id, authorId });
           }
         }
       ]
@@ -590,10 +597,10 @@ export default function BoardScreen() {
                     {isAnnouncement && (item as AnnouncementRow).priority === 'urgent' && (
                       <AlertCircle color="#EF4444" size={20} />
                     )}
-                    {isAdmin && (
+                    {(isAdmin || (!isAnnouncement && (item as QuestionRow).author_id === user?.id)) && (
                       <TouchableOpacity
                         style={styles.deleteButton}
-                        onPress={() => handleDelete(activeTab, item.id)}
+                        onPress={() => handleDelete(activeTab, item.id, !isAnnouncement ? (item as QuestionRow).author_id : undefined)}
                         testID={`delete-${item.id}`}
                       >
                         <Trash2 color="#EF4444" size={18} />
