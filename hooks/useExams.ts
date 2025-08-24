@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/config/supabase';
+import { supabase, checkNetworkConnectivity, testSupabaseConnection } from '@/config/supabase';
 import { useAuth } from '@/hooks/auth-context';
 
 export interface ExamData {
@@ -32,7 +32,7 @@ export function useExams() {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const fetchExams = useCallback(async () => {
+  const fetchExams = useCallback(async (retryCount = 0) => {
     console.log('[useExams] Starting fetchExams, user:', { 
       id: user?.id, 
       gradeLevel: user?.gradeLevel, 
@@ -49,6 +49,18 @@ export function useExams() {
     try {
       setIsLoading(true);
       setError(null);
+      
+      // Check network connectivity first
+      const networkCheck = await checkNetworkConnectivity();
+      if (!networkCheck.isConnected) {
+        throw new Error(networkCheck.error || 'No internet connection');
+      }
+      
+      // Test Supabase connection
+      const connectionTest = await testSupabaseConnection();
+      if (!connectionTest.success) {
+        throw new Error(connectionTest.error || 'Database connection failed');
+      }
 
       // Extract numeric grade level from string like "Grade 10" -> 10
       let numericGradeLevel: number | null = null;
@@ -132,6 +144,14 @@ export function useExams() {
       if (examError) {
         console.error('[useExams] Error fetching exams:', examError);
         console.error('[useExams] Error details:', JSON.stringify(examError, null, 2));
+        
+        // Check if it's a network error and retry
+        if (examError.message?.includes('Network request failed') && retryCount < 3) {
+          console.log(`[useExams] Network error, retrying... (attempt ${retryCount + 1}/3)`);
+          setTimeout(() => fetchExams(retryCount + 1), 2000 * (retryCount + 1));
+          return;
+        }
+        
         setError(`Database error: ${examError.message}`);
         return;
       }
@@ -259,8 +279,23 @@ export function useExams() {
     } catch (err) {
       console.error('[useExams] Error in fetchExams:', err);
       console.error('[useExams] Error stack:', err instanceof Error ? err.stack : 'No stack trace');
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      console.error('[useExams] Error message:', errorMessage);
+      
+      let errorMessage = 'Failed to load exams';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+        console.error('[useExams] Error name:', err.name);
+        
+        // Check if it's a network error and retry
+        if (err.message?.includes('Network request failed') && retryCount < 3) {
+          console.log(`[useExams] Network error, retrying... (attempt ${retryCount + 1}/3)`);
+          setTimeout(() => fetchExams(retryCount + 1), 2000 * (retryCount + 1));
+          return;
+        }
+      } else {
+        errorMessage = String(err);
+      }
+      
+      console.error('[useExams] Final error message:', errorMessage);
       setError(`Error fetching exams: ${errorMessage}`);
     } finally {
       setIsLoading(false);

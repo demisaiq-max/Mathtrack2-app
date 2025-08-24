@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/config/supabase';
+import { supabase, checkNetworkConnectivity, testSupabaseConnection } from '@/config/supabase';
 import { useAuth } from './auth-context';
 import { Alert } from 'react-native';
 
@@ -34,11 +34,23 @@ export function useSchedules() {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const loadSchedules = useCallback(async () => {
+  const loadSchedules = useCallback(async (retryCount = 0) => {
     setLoading(true);
     setError(null);
     
     try {
+      // Check network connectivity first
+      const networkCheck = await checkNetworkConnectivity();
+      if (!networkCheck.isConnected) {
+        throw new Error(networkCheck.error || 'No internet connection');
+      }
+      
+      // Test Supabase connection
+      const connectionTest = await testSupabaseConnection();
+      if (!connectionTest.success) {
+        throw new Error(connectionTest.error || 'Database connection failed');
+      }
+      
       console.log('[useSchedules] Loading all schedules (RLS disabled)');
       
       // Since RLS is disabled, fetch all schedules without filtering by admin_id
@@ -53,25 +65,46 @@ export function useSchedules() {
         console.error('[useSchedules] Error code:', error.code);
         console.error('[useSchedules] Error details:', error.details);
         console.error('[useSchedules] Error hint:', error.hint);
+        
+        // Check if it's a network error and retry
+        if (error.message?.includes('Network request failed') && retryCount < 3) {
+          console.log(`[useSchedules] Network error, retrying... (attempt ${retryCount + 1}/3)`);
+          setTimeout(() => loadSchedules(retryCount + 1), 2000 * (retryCount + 1));
+          return;
+        }
+        
         const errorMessage = `Database error: ${error.message}${error.code ? ` (Code: ${error.code})` : ''}`;
         setError(errorMessage);
         return;
       }
 
       console.log('[useSchedules] Loaded schedules:', data?.length || 0);
-      console.log('[useSchedules] Schedule data:', JSON.stringify(data, null, 2));
+      if (data && data.length > 0) {
+        console.log('[useSchedules] First schedule:', data[0]);
+      }
       setSchedules(data || []);
     } catch (err) {
       console.error('[useSchedules] Unexpected error:', err);
+      
       let errorMessage = 'Failed to load schedules';
       if (err instanceof Error) {
         errorMessage = err.message;
+        console.error('[useSchedules] Error name:', err.name);
+        console.error('[useSchedules] Error stack:', err.stack);
+        
+        // Check if it's a network error and retry
+        if (err.message?.includes('Network request failed') && retryCount < 3) {
+          console.log(`[useSchedules] Network error, retrying... (attempt ${retryCount + 1}/3)`);
+          setTimeout(() => loadSchedules(retryCount + 1), 2000 * (retryCount + 1));
+          return;
+        }
       } else if (typeof err === 'object' && err !== null) {
         errorMessage = JSON.stringify(err);
       } else {
         errorMessage = String(err);
       }
-      console.error('[useSchedules] Error message:', errorMessage);
+      
+      console.error('[useSchedules] Final error message:', errorMessage);
       setError(errorMessage);
     } finally {
       setLoading(false);
