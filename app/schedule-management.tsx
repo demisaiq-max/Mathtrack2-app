@@ -9,7 +9,6 @@ import {
   TextInput,
   Modal,
   Platform,
-  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -28,7 +27,7 @@ import {
   MessageSquare,
   Settings,
 } from 'lucide-react-native';
-import DateTimePickerModal from 'react-native-modal-datetime-picker';
+
 import { useTheme } from '@/hooks/theme-context';
 import { useSchedules, Schedule, ScheduleFormData } from '@/hooks/useSchedules';
 
@@ -56,9 +55,7 @@ export default function ScheduleManagement() {
     end_time: '',
     location: '',
   });
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+
 
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -111,6 +108,31 @@ export default function ScheduleManagement() {
       return;
     }
 
+    // Validate date format
+    if (!validateDate(formData.date)) {
+      Alert.alert('Error', 'Please enter a valid date in YYYY-MM-DD format');
+      return;
+    }
+
+    // Validate time formats
+    if (!validateTime(formData.start_time)) {
+      Alert.alert('Error', 'Please enter a valid start time in HH:MM format (24-hour)');
+      return;
+    }
+
+    if (!validateTime(formData.end_time)) {
+      Alert.alert('Error', 'Please enter a valid end time in HH:MM format (24-hour)');
+      return;
+    }
+
+    // Validate that end time is after start time
+    const startTime = new Date(`2000-01-01T${formData.start_time}:00`);
+    const endTime = new Date(`2000-01-01T${formData.end_time}:00`);
+    if (endTime <= startTime) {
+      Alert.alert('Error', 'End time must be after start time');
+      return;
+    }
+
     let success = false;
     if (editingSchedule) {
       success = await updateSchedule(editingSchedule.id, formData);
@@ -126,11 +148,50 @@ export default function ScheduleManagement() {
   };
 
   const formatTime = (time: string) => {
+    if (!time || !time.includes(':')) return time;
     const [hours, minutes] = time.split(':');
     const hour = parseInt(hours);
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour % 12 || 12;
     return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  const formatDateInput = (text: string) => {
+    // Remove all non-numeric characters
+    const numbers = text.replace(/\D/g, '');
+    
+    // Format as YYYY-MM-DD
+    if (numbers.length <= 4) {
+      return numbers;
+    } else if (numbers.length <= 6) {
+      return `${numbers.slice(0, 4)}-${numbers.slice(4)}`;
+    } else {
+      return `${numbers.slice(0, 4)}-${numbers.slice(4, 6)}-${numbers.slice(6, 8)}`;
+    }
+  };
+
+  const formatTimeInput = (text: string) => {
+    // Remove all non-numeric characters
+    const numbers = text.replace(/\D/g, '');
+    
+    // Format as HH:MM
+    if (numbers.length <= 2) {
+      return numbers;
+    } else {
+      return `${numbers.slice(0, 2)}:${numbers.slice(2, 4)}`;
+    }
+  };
+
+  const validateDate = (dateString: string) => {
+    if (dateString.length !== 10) return false;
+    const date = new Date(dateString);
+    return date instanceof Date && !isNaN(date.getTime());
+  };
+
+  const validateTime = (timeString: string) => {
+    if (timeString.length !== 5) return false;
+    const [hours, minutes] = timeString.split(':').map(Number);
+    return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
   };
 
   const formatDate = (dateString: string) => {
@@ -451,56 +512,59 @@ export default function ScheduleManagement() {
 
             <View style={styles.formGroup}>
               <Text style={[styles.formLabel, { color: colors.text }]}>Date *</Text>
-              <Pressable
-                style={[styles.formInput, styles.datePickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                onPress={() => {
-                  setShowDatePicker(true);
-                }}
-              >
+              <View style={styles.inputContainer}>
                 <TextInput
-                  style={[styles.datePickerText, { color: formData.date ? colors.text : colors.textSecondary }]}
-                  value={formData.date ? formatDate(formData.date) : 'Select Date'}
-                  editable={false}
-                  pointerEvents="none"
+                  style={[styles.formInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                  value={formData.date}
+                  onChangeText={(text) => {
+                    const formatted = formatDateInput(text);
+                    setFormData(prev => ({ ...prev, date: formatted }));
+                  }}
+                  placeholder="YYYY-MM-DD (e.g., 2025-01-15)"
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType="numeric"
+                  maxLength={10}
                 />
-                <Calendar size={16} color={colors.textSecondary} />
-              </Pressable>
+                <Text style={[styles.inputHint, { color: colors.textSecondary }]}>Format: YYYY-MM-DD</Text>
+              </View>
             </View>
 
             <View style={styles.formRow}>
               <View style={styles.formGroupHalf}>
                 <Text style={[styles.formLabel, { color: colors.text }]}>Start Time *</Text>
-                <Pressable
-                  style={[styles.formInput, styles.timePickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                  onPress={() => {
-                    setShowStartTimePicker(true);
-                  }}
-                >
+                <View style={styles.inputContainer}>
                   <TextInput
-                    style={[styles.timePickerText, { color: formData.start_time ? colors.text : colors.textSecondary }]}
-                    value={formData.start_time ? formatTime(formData.start_time) : 'Start Time'}
-                    editable={false}
-                    pointerEvents="none"
+                    style={[styles.formInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                    value={formData.start_time}
+                    onChangeText={(text) => {
+                      const formatted = formatTimeInput(text);
+                      setFormData(prev => ({ ...prev, start_time: formatted }));
+                    }}
+                    placeholder="HH:MM (e.g., 09:30)"
+                    placeholderTextColor={colors.textSecondary}
+                    keyboardType="numeric"
+                    maxLength={5}
                   />
-                  <Clock size={16} color={colors.textSecondary} />
-                </Pressable>
+                  <Text style={[styles.inputHint, { color: colors.textSecondary }]}>24-hour format</Text>
+                </View>
               </View>
               <View style={styles.formGroupHalf}>
                 <Text style={[styles.formLabel, { color: colors.text }]}>End Time *</Text>
-                <Pressable
-                  style={[styles.formInput, styles.timePickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                  onPress={() => {
-                    setShowEndTimePicker(true);
-                  }}
-                >
+                <View style={styles.inputContainer}>
                   <TextInput
-                    style={[styles.timePickerText, { color: formData.end_time ? colors.text : colors.textSecondary }]}
-                    value={formData.end_time ? formatTime(formData.end_time) : 'End Time'}
-                    editable={false}
-                    pointerEvents="none"
+                    style={[styles.formInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                    value={formData.end_time}
+                    onChangeText={(text) => {
+                      const formatted = formatTimeInput(text);
+                      setFormData(prev => ({ ...prev, end_time: formatted }));
+                    }}
+                    placeholder="HH:MM (e.g., 11:00)"
+                    placeholderTextColor={colors.textSecondary}
+                    keyboardType="numeric"
+                    maxLength={5}
                   />
-                  <Clock size={16} color={colors.textSecondary} />
-                </Pressable>
+                  <Text style={[styles.inputHint, { color: colors.textSecondary }]}>24-hour format</Text>
+                </View>
               </View>
             </View>
 
@@ -529,76 +593,7 @@ export default function ScheduleManagement() {
         </SafeAreaView>
       </Modal>
 
-      {/* Cross-Platform Date Picker */}
-      <DateTimePickerModal
-        isVisible={showDatePicker}
-        mode="date"
-        onConfirm={(selectedDate) => {
-          const dateString = selectedDate.toISOString().split('T')[0];
-          setFormData(prev => ({ ...prev, date: dateString }));
-          setShowDatePicker(false);
-          console.log('[DatePicker] Date selected:', dateString);
-        }}
-        onCancel={() => setShowDatePicker(false)}
-        date={formData.date ? new Date(formData.date) : new Date()}
-        minimumDate={new Date()}
-        maximumDate={new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)}
-        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-        isDarkModeEnabled={isDark}
-        confirmTextIOS="Confirm"
-        cancelTextIOS="Cancel"
-        customHeaderIOS={() => (
-          <View style={[styles.pickerHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-            <Text style={[styles.pickerHeaderText, { color: colors.text }]}>Select Date</Text>
-          </View>
-        )}
-      />
 
-      {/* Cross-Platform Start Time Picker */}
-      <DateTimePickerModal
-        isVisible={showStartTimePicker}
-        mode="time"
-        onConfirm={(selectedTime) => {
-          const timeString = selectedTime.toTimeString().slice(0, 5);
-          setFormData(prev => ({ ...prev, start_time: timeString }));
-          setShowStartTimePicker(false);
-          console.log('[TimePicker] Start time selected:', timeString);
-        }}
-        onCancel={() => setShowStartTimePicker(false)}
-        date={formData.start_time ? new Date(`2000-01-01T${formData.start_time}:00`) : new Date()}
-        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-        isDarkModeEnabled={isDark}
-        confirmTextIOS="Confirm"
-        cancelTextIOS="Cancel"
-        customHeaderIOS={() => (
-          <View style={[styles.pickerHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-            <Text style={[styles.pickerHeaderText, { color: colors.text }]}>Select Start Time</Text>
-          </View>
-        )}
-      />
-
-      {/* Cross-Platform End Time Picker */}
-      <DateTimePickerModal
-        isVisible={showEndTimePicker}
-        mode="time"
-        onConfirm={(selectedTime) => {
-          const timeString = selectedTime.toTimeString().slice(0, 5);
-          setFormData(prev => ({ ...prev, end_time: timeString }));
-          setShowEndTimePicker(false);
-          console.log('[TimePicker] End time selected:', timeString);
-        }}
-        onCancel={() => setShowEndTimePicker(false)}
-        date={formData.end_time ? new Date(`2000-01-01T${formData.end_time}:00`) : new Date()}
-        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-        isDarkModeEnabled={isDark}
-        confirmTextIOS="Confirm"
-        cancelTextIOS="Cancel"
-        customHeaderIOS={() => (
-          <View style={[styles.pickerHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-            <Text style={[styles.pickerHeaderText, { color: colors.text }]}>Select End Time</Text>
-          </View>
-        )}
-      />
     </SafeAreaView>
   );
 }
@@ -905,59 +900,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  datePickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  inputContainer: {
+    gap: 4,
   },
-  datePickerText: {
-    fontSize: 16,
-    flex: 1,
-  },
-  timePickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  timePickerText: {
-    fontSize: 16,
-    flex: 1,
-  },
-  pickerHeader: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    alignItems: 'center',
-  },
-  pickerHeaderText: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  pickerScrollView: {
-    flex: 1,
-    paddingHorizontal: 24,
-  },
-  pickerOptionsContainer: {
-    paddingVertical: 20,
-    gap: 8,
-  },
-  pickerOption: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5E7EB',
-  },
-  pickerOptionSelected: {
-    backgroundColor: '#4F46E5',
-    borderColor: '#4F46E5',
-  },
-  pickerOptionText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#111827',
+  inputHint: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
 });
