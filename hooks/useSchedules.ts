@@ -35,37 +35,16 @@ export function useSchedules() {
   const { user } = useAuth();
 
   const loadSchedules = useCallback(async () => {
-    if (!user?.id) {
-      console.log('[useSchedules] No user ID available');
-      setError('User not authenticated');
-      return;
-    }
-
     setLoading(true);
     setError(null);
     
     try {
-      console.log('[useSchedules] Loading schedules for admin:', user.id);
-      console.log('[useSchedules] User object:', JSON.stringify(user, null, 2));
+      console.log('[useSchedules] Loading all schedules (RLS disabled)');
       
-      // First, let's check if we can access the schedules table at all
-      const { data: testData, error: testError } = await supabase
-        .from('schedules')
-        .select('count')
-        .limit(1);
-      
-      if (testError) {
-        console.error('[useSchedules] Cannot access schedules table:', testError);
-        setError(`Database access error: ${testError.message}`);
-        return;
-      }
-      
-      console.log('[useSchedules] Schedules table accessible, test result:', testData);
-      
+      // Since RLS is disabled, fetch all schedules without filtering by admin_id
       const { data, error } = await supabase
         .from('schedules')
         .select('*')
-        .eq('admin_id', user.id)
         .order('date', { ascending: true })
         .order('start_time', { ascending: true });
 
@@ -74,7 +53,8 @@ export function useSchedules() {
         console.error('[useSchedules] Error code:', error.code);
         console.error('[useSchedules] Error details:', error.details);
         console.error('[useSchedules] Error hint:', error.hint);
-        setError(`Database error: ${error.message} (Code: ${error.code})`);
+        const errorMessage = `Database error: ${error.message}${error.code ? ` (Code: ${error.code})` : ''}`;
+        setError(errorMessage);
         return;
       }
 
@@ -83,13 +63,20 @@ export function useSchedules() {
       setSchedules(data || []);
     } catch (err) {
       console.error('[useSchedules] Unexpected error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load schedules';
-      console.error('[useSchedules] Error details:', JSON.stringify(err, null, 2));
+      let errorMessage = 'Failed to load schedules';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err !== null) {
+        errorMessage = JSON.stringify(err);
+      } else {
+        errorMessage = String(err);
+      }
+      console.error('[useSchedules] Error message:', errorMessage);
       setError(errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, []);
 
   const createSchedule = async (scheduleData: ScheduleFormData): Promise<boolean> => {
     if (!user?.id) {
@@ -121,8 +108,9 @@ export function useSchedules() {
 
       if (error) {
         console.error('[useSchedules] Error creating schedule:', error);
-        setError(error.message);
-        Alert.alert('Error', 'Failed to create schedule');
+        const errorMessage = `Failed to create schedule: ${error.message}`;
+        setError(errorMessage);
+        Alert.alert('Error', errorMessage);
         return false;
       }
 
@@ -139,8 +127,14 @@ export function useSchedules() {
       return true;
     } catch (err) {
       console.error('[useSchedules] Unexpected error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create schedule';
-      console.error('[useSchedules] Error details:', JSON.stringify(err, null, 2));
+      let errorMessage = 'Failed to create schedule';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err !== null) {
+        errorMessage = JSON.stringify(err);
+      } else {
+        errorMessage = String(err);
+      }
       setError(errorMessage);
       Alert.alert('Error', errorMessage);
       return false;
@@ -150,11 +144,6 @@ export function useSchedules() {
   };
 
   const updateSchedule = async (id: number, scheduleData: ScheduleFormData): Promise<boolean> => {
-    if (!user?.id) {
-      Alert.alert('Error', 'User not authenticated');
-      return false;
-    }
-
     setLoading(true);
     setError(null);
 
@@ -174,14 +163,14 @@ export function useSchedules() {
           location: scheduleData.location || null,
         })
         .eq('id', id)
-        .eq('admin_id', user.id)
         .select()
         .single();
 
       if (error) {
         console.error('[useSchedules] Error updating schedule:', error);
-        setError(error.message);
-        Alert.alert('Error', 'Failed to update schedule');
+        const errorMessage = `Failed to update schedule: ${error.message}`;
+        setError(errorMessage);
+        Alert.alert('Error', errorMessage);
         return false;
       }
 
@@ -198,8 +187,14 @@ export function useSchedules() {
       return true;
     } catch (err) {
       console.error('[useSchedules] Unexpected error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update schedule';
-      console.error('[useSchedules] Error details:', JSON.stringify(err, null, 2));
+      let errorMessage = 'Failed to update schedule';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err !== null) {
+        errorMessage = JSON.stringify(err);
+      } else {
+        errorMessage = String(err);
+      }
       setError(errorMessage);
       Alert.alert('Error', errorMessage);
       return false;
@@ -209,11 +204,6 @@ export function useSchedules() {
   };
 
   const deleteSchedule = async (id: number): Promise<boolean> => {
-    if (!user?.id) {
-      Alert.alert('Error', 'User not authenticated');
-      return false;
-    }
-
     setLoading(true);
     setError(null);
 
@@ -223,13 +213,13 @@ export function useSchedules() {
       const { error } = await supabase
         .from('schedules')
         .delete()
-        .eq('id', id)
-        .eq('admin_id', user.id);
+        .eq('id', id);
 
       if (error) {
         console.error('[useSchedules] Error deleting schedule:', error);
-        setError(error.message);
-        Alert.alert('Error', 'Failed to delete schedule');
+        const errorMessage = `Failed to delete schedule: ${error.message}`;
+        setError(errorMessage);
+        Alert.alert('Error', errorMessage);
         return false;
       }
 
@@ -242,8 +232,14 @@ export function useSchedules() {
       return true;
     } catch (err) {
       console.error('[useSchedules] Unexpected error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete schedule';
-      console.error('[useSchedules] Error details:', JSON.stringify(err, null, 2));
+      let errorMessage = 'Failed to delete schedule';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err !== null) {
+        errorMessage = JSON.stringify(err);
+      } else {
+        errorMessage = String(err);
+      }
       setError(errorMessage);
       Alert.alert('Error', errorMessage);
       return false;
@@ -267,17 +263,11 @@ export function useSchedules() {
     });
   }, [schedules]);
 
+  // Load schedules when component mounts
   useEffect(() => {
+    console.log('[useSchedules] Component mounted, loading schedules');
     loadSchedules();
   }, [loadSchedules]);
-
-  // Force refresh schedules when user changes
-  useEffect(() => {
-    if (user?.id) {
-      console.log('[useSchedules] User changed, reloading schedules');
-      loadSchedules();
-    }
-  }, [user?.id, loadSchedules]);
 
   return {
     schedules,
