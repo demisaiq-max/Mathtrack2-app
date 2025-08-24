@@ -76,6 +76,7 @@ interface AdminContextType {
   isLoading: boolean;
   addAnnouncement: (announcement: Omit<Announcement, 'id' | 'date' | 'likes' | 'comments'>) => void;
   updateSubmission: (id: string, updates: Partial<Submission>) => void;
+  deleteSubmission: (id: string) => Promise<void>;
   likeAnnouncement: (id: string) => void;
   addComment: (id: string) => void;
   addQAQuestion: (question: Omit<QAQuestion, 'id' | 'date' | 'replies' | 'isAnswered'>) => void;
@@ -544,6 +545,30 @@ export const [AdminProvider, useAdmin] = createContextHook((): AdminContextType 
     Alert.alert('Success', 'Exam report deleted successfully!');
   }, []);
 
+  const deleteSubmission = useCallback(async (id: string) => {
+    try {
+      console.log('[AdminContext] Deleting submission:', id);
+      
+      const { error } = await supabase
+        .from('exam_submissions')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('[AdminContext] Error deleting submission:', error);
+        throw error;
+      }
+
+      // Remove from local state
+      setSubmissions(prev => prev.filter(sub => sub.id !== id));
+      Alert.alert('Success', 'Submission deleted successfully!');
+    } catch (error) {
+      console.error('[AdminContext] Error in deleteSubmission:', error);
+      Alert.alert('Error', 'Failed to delete submission. Please try again.');
+      throw error;
+    }
+  }, []);
+
   return useMemo(() => ({
     submissions,
     announcements,
@@ -554,6 +579,7 @@ export const [AdminProvider, useAdmin] = createContextHook((): AdminContextType 
     isLoading,
     addAnnouncement,
     updateSubmission,
+    deleteSubmission,
     likeAnnouncement,
     addComment,
     addQAQuestion,
@@ -574,6 +600,7 @@ export const [AdminProvider, useAdmin] = createContextHook((): AdminContextType 
     isLoading,
     addAnnouncement,
     updateSubmission,
+    deleteSubmission,
     likeAnnouncement,
     addComment,
     addQAQuestion,

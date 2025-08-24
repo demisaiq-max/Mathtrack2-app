@@ -14,7 +14,7 @@ import {
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Filter, Eye, Download, Edit, X, Save, FileText, ChevronDown, RefreshCw } from 'lucide-react-native';
+import { Search, Filter, Eye, Download, Edit, X, Save, FileText, ChevronDown, RefreshCw, Trash2 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useAdmin } from '@/hooks/admin-context';
 import { useTheme } from '@/hooks/theme-context';
@@ -40,7 +40,7 @@ interface GradingData {
 }
 
 export default function SubmissionsScreen() {
-  const { submissions, updateSubmission, pendingSubmissionsCount, isLoading, fetchSubmissions } = useAdmin();
+  const { submissions, updateSubmission, deleteSubmission, pendingSubmissionsCount, isLoading, fetchSubmissions } = useAdmin();
   const { colors, isDark } = useTheme();
   const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
@@ -197,6 +197,30 @@ export default function SubmissionsScreen() {
     setGradingData({ grade: '', feedback: '' });
     
     Alert.alert(t('success'), t('gradeSaved'));
+  };
+
+  const handleDeleteSubmission = (submission: Submission) => {
+    Alert.alert(
+      'Delete Submission',
+      `Are you sure you want to delete ${submission.studentName}'s submission for ${submission.examName}?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteSubmission(submission.id);
+            } catch (error) {
+              console.error('Error deleting submission:', error);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const getStatusColor = (status: string) => {
@@ -443,6 +467,12 @@ export default function SubmissionsScreen() {
                         >
                           <Edit size={16} color={colors.textSecondary} />
                         </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={styles.actionIcon}
+                          onPress={() => handleDeleteSubmission(submission)}
+                        >
+                          <Trash2 size={16} color={colors.error || '#EF4444'} />
+                        </TouchableOpacity>
                       </View>
                     </View>
                   </View>
@@ -619,50 +649,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingHorizontal: Platform.OS === 'android' ? 16 : 24,
+    paddingVertical: Platform.OS === 'android' ? 16 : 20,
     borderBottomWidth: 1,
   },
   title: {
-    fontSize: 18,
+    fontSize: Platform.OS === 'android' ? 16 : 18,
     fontWeight: 'bold',
     marginBottom: 4,
     flexShrink: 1,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: Platform.OS === 'android' ? 12 : 14,
     flexShrink: 1,
   },
   adminInfo: {
     alignItems: 'flex-end',
     flexShrink: 0,
-    maxWidth: '40%',
+    maxWidth: Platform.OS === 'android' ? '45%' : '40%',
   },
   adminRole: {
-    fontSize: 12,
+    fontSize: Platform.OS === 'android' ? 11 : 12,
     fontWeight: '600',
     marginBottom: 2,
   },
   adminEmail: {
-    fontSize: 10,
+    fontSize: Platform.OS === 'android' ? 9 : 10,
     flexShrink: 1,
   },
   navTabs: {
     flexDirection: 'row',
-    paddingHorizontal: 24,
+    paddingHorizontal: Platform.OS === 'android' ? 16 : 24,
     borderBottomWidth: 1,
   },
   navTab: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    marginRight: 24,
+    paddingVertical: Platform.OS === 'android' ? 12 : 16,
+    paddingHorizontal: Platform.OS === 'android' ? 12 : 16,
+    marginRight: Platform.OS === 'android' ? 16 : 24,
   },
   activeNavTab: {
     borderBottomWidth: 2,
     borderBottomColor: '#4F46E5',
   },
   navTabText: {
-    fontSize: 12,
+    fontSize: Platform.OS === 'android' ? 11 : 12,
     fontWeight: '500',
     textAlign: 'center',
     flexShrink: 1,
@@ -671,8 +701,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   filtersSection: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingHorizontal: Platform.OS === 'android' ? 16 : 24,
+    paddingVertical: Platform.OS === 'android' ? 12 : 16,
     borderBottomWidth: 1,
     zIndex: 99999,
     elevation: 99,
@@ -683,15 +713,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   filtersRow: {
-    flexDirection: 'row',
-    gap: 16,
+    flexDirection: Platform.OS === 'android' ? 'column' : 'row',
+    gap: Platform.OS === 'android' ? 12 : 16,
     flexWrap: 'wrap',
   },
   filterGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    minWidth: 150,
+    flex: Platform.OS === 'android' ? 0 : 1,
+    minWidth: Platform.OS === 'android' ? '100%' : 150,
   },
   filterLabel: {
     fontSize: 12,
@@ -709,10 +739,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderWidth: 1,
     borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minWidth: 120,
-    maxWidth: 180,
+    paddingHorizontal: Platform.OS === 'android' ? 10 : 12,
+    paddingVertical: Platform.OS === 'android' ? 6 : 8,
+    minWidth: Platform.OS === 'android' ? 140 : 120,
+    maxWidth: Platform.OS === 'android' ? 200 : 180,
   },
   filterValue: {
     fontSize: 12,
@@ -749,16 +779,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   section: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    paddingBottom: 40,
+    paddingHorizontal: Platform.OS === 'android' ? 16 : 24,
+    paddingVertical: Platform.OS === 'android' ? 16 : 20,
+    paddingBottom: Platform.OS === 'android' ? 32 : 40,
     zIndex: 1,
   },
   sectionHeader: {
-    flexDirection: 'row',
+    flexDirection: Platform.OS === 'android' ? 'column' : 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    alignItems: Platform.OS === 'android' ? 'stretch' : 'center',
+    marginBottom: Platform.OS === 'android' ? 16 : 20,
+    gap: Platform.OS === 'android' ? 12 : 0,
   },
   sectionTitle: {
     fontSize: 16,
@@ -768,7 +799,8 @@ const styles = StyleSheet.create({
   sectionActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Platform.OS === 'android' ? 8 : 12,
+    flexWrap: 'wrap',
   },
   actionButton: {
     flexDirection: 'row',
@@ -787,68 +819,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: Platform.OS === 'android' ? 10 : 12,
+    paddingVertical: Platform.OS === 'android' ? 6 : 8,
     gap: 8,
+    flex: Platform.OS === 'android' ? 1 : 0,
   },
   searchInput: {
-    fontSize: 12,
-    minWidth: 150,
+    fontSize: Platform.OS === 'android' ? 11 : 12,
+    minWidth: Platform.OS === 'android' ? 120 : 150,
     flex: 1,
   },
   tableContainer: {
     marginTop: 8,
   },
   table: {
-    minWidth: 700,
+    minWidth: Platform.OS === 'android' ? 650 : 700,
   },
   tableHeader: {
     flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'android' ? 10 : 12,
+    paddingHorizontal: Platform.OS === 'android' ? 12 : 16,
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
     borderWidth: 1,
   },
   tableHeaderText: {
-    fontSize: 10,
+    fontSize: Platform.OS === 'android' ? 9 : 10,
     fontWeight: '600',
     textTransform: 'uppercase',
     flexShrink: 1,
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'android' ? 12 : 16,
+    paddingHorizontal: Platform.OS === 'android' ? 12 : 16,
     borderBottomWidth: 1,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    minHeight: 80,
+    minHeight: Platform.OS === 'android' ? 70 : 80,
   },
   tableCell: {
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: Platform.OS === 'android' ? 2 : 4,
   },
   studentColumn: {
-    width: 120,
+    width: Platform.OS === 'android' ? 110 : 120,
   },
   examColumn: {
-    width: 150,
+    width: Platform.OS === 'android' ? 140 : 150,
   },
   fileColumn: {
-    width: 130,
+    width: Platform.OS === 'android' ? 120 : 130,
   },
   dateColumn: {
-    width: 80,
+    width: Platform.OS === 'android' ? 75 : 80,
   },
   statusColumn: {
-    width: 80,
+    width: Platform.OS === 'android' ? 75 : 80,
   },
   gradeColumn: {
-    width: 60,
+    width: Platform.OS === 'android' ? 55 : 60,
   },
   actionsColumn: {
-    width: 90,
+    width: Platform.OS === 'android' ? 120 : 110,
   },
   studentInfo: {
     flexDirection: 'column',
@@ -869,26 +902,26 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   studentName: {
-    fontSize: 10,
+    fontSize: Platform.OS === 'android' ? 9 : 10,
     fontWeight: '500',
-    lineHeight: 14,
+    lineHeight: Platform.OS === 'android' ? 12 : 14,
   },
   examName: {
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: Platform.OS === 'android' ? 9 : 10,
+    lineHeight: Platform.OS === 'android' ? 12 : 14,
   },
   fileInfo: {
     gap: 2,
   },
   fileName: {
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: Platform.OS === 'android' ? 9 : 10,
+    lineHeight: Platform.OS === 'android' ? 12 : 14,
   },
   fileSize: {
-    fontSize: 10,
+    fontSize: Platform.OS === 'android' ? 9 : 10,
   },
   submittedDate: {
-    fontSize: 10,
+    fontSize: Platform.OS === 'android' ? 9 : 10,
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -897,21 +930,22 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   statusText: {
-    fontSize: 10,
+    fontSize: Platform.OS === 'android' ? 9 : 10,
     fontWeight: '500',
   },
   gradeText: {
-    fontSize: 12,
+    fontSize: Platform.OS === 'android' ? 11 : 12,
     fontWeight: '600',
     textAlign: 'center',
   },
   actionsContainer: {
     flexDirection: 'row',
-    gap: 4,
+    gap: Platform.OS === 'android' ? 2 : 4,
     justifyContent: 'center',
+    flexWrap: 'wrap',
   },
   actionIcon: {
-    padding: 4,
+    padding: Platform.OS === 'android' ? 3 : 4,
   },
   modalContainer: {
     flex: 1,
