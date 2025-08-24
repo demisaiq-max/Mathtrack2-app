@@ -5,15 +5,13 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
 import { useAuth } from '@/hooks/auth-context';
 import { PasswordStrength } from '@/components/PasswordStrength';
+import KeyboardAwareScrollView from '@/components/KeyboardAwareScrollView';
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -39,7 +37,7 @@ export default function SignUpScreen() {
 
     setIsLoading(true);
     try {
-      const user = await signUp({
+      await signUp({
         accountType,
         fullName,
         email,
@@ -47,12 +45,7 @@ export default function SignUpScreen() {
         confirmPassword,
         gradeLevel: accountType === 'student' ? gradeLevel : undefined,
       });
-      // Navigate based on account type
-      if (user.accountType === 'admin') {
-        router.replace('/(admin)/dashboard' as any);
-      } else {
-        router.replace('/(tabs)/home' as any);
-      }
+      // Navigation will be handled by the auth state change in the root layout
     } catch {
       alert('Sign up failed. Please try again.');
     } finally {
@@ -62,14 +55,11 @@ export default function SignUpScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+      <KeyboardAwareScrollView
+        contentContainerStyle={styles.scrollContent}
+        extraScrollHeight={100}
+        enableOnAndroid={true}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
           <View style={styles.header}>
             <Text style={styles.title}>Sign Up</Text>
             <Text style={styles.subtitle}>Create Your Account</Text>
@@ -204,8 +194,7 @@ export default function SignUpScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
@@ -214,9 +203,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  keyboardView: {
-    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,

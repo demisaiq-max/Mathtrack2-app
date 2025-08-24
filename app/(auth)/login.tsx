@@ -5,14 +5,12 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/auth-context';
+import KeyboardAwareScrollView from '@/components/KeyboardAwareScrollView';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -30,13 +28,8 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
-      const user = await login({ emailOrUsername, password, rememberMe });
-      // Navigate based on account type
-      if (user.accountType === 'admin') {
-        router.replace('/(admin)/dashboard' as any);
-      } else {
-        router.replace('/(tabs)/home' as any);
-      }
+      await login({ emailOrUsername, password, rememberMe });
+      // Navigation will be handled by the auth state change in the root layout
     } catch {
       alert('Login failed. Please try again.');
     } finally {
@@ -46,79 +39,75 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+      <KeyboardAwareScrollView
+        contentContainerStyle={styles.scrollContent}
+        extraScrollHeight={100}
+        enableOnAndroid={true}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Login to your account</Text>
+        <View style={styles.header}>
+          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.subtitle}>Login to your account</Text>
+        </View>
+
+        <View style={styles.form}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Username or Email</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your username or email"
+              placeholderTextColor="#9CA3AF"
+              value={emailOrUsername}
+              onChangeText={setEmailOrUsername}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
           </View>
 
-          <View style={styles.form}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Username or Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your username or email"
-                placeholderTextColor="#9CA3AF"
-                value={emailOrUsername}
-                onChangeText={setEmailOrUsername}
-                autoCapitalize="none"
-                keyboardType="email-address"
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your password"
+              placeholderTextColor="#9CA3AF"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+          </View>
+
+          <View style={styles.row}>
+            <View style={styles.rememberMe}>
+              <Switch
+                value={rememberMe}
+                onValueChange={setRememberMe}
+                trackColor={{ false: '#E5E7EB', true: '#4F46E5' }}
+                thumbColor="#FFFFFF"
               />
+              <Text style={styles.rememberText}>Remember Me</Text>
             </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your password"
-                placeholderTextColor="#9CA3AF"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-            </View>
-
-            <View style={styles.row}>
-              <View style={styles.rememberMe}>
-                <Switch
-                  value={rememberMe}
-                  onValueChange={setRememberMe}
-                  trackColor={{ false: '#E5E7EB', true: '#4F46E5' }}
-                  thumbColor="#FFFFFF"
-                />
-                <Text style={styles.rememberText}>Remember Me</Text>
-              </View>
-              <TouchableOpacity>
-                <Text style={styles.forgotPassword}>Forgot Password?</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={handleLogin}
-              disabled={isLoading}
-            >
-              <Text style={styles.buttonText}>
-                {isLoading ? 'Logging in...' : 'Login'}
-              </Text>
+            <TouchableOpacity>
+              <Text style={styles.forgotPassword}>Forgot Password?</Text>
             </TouchableOpacity>
-
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Don&apos;t have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
-                <Text style={styles.link}>Sign Up</Text>
-              </TouchableOpacity>
-            </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+
+          <TouchableOpacity
+            style={[styles.button, isLoading && styles.buttonDisabled]}
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            <Text style={styles.buttonText}>
+              {isLoading ? 'Logging in...' : 'Login'}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Don&apos;t have an account? </Text>
+            <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
+              <Text style={styles.link}>Sign Up</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
@@ -127,9 +116,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  keyboardView: {
-    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,

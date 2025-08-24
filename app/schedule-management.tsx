@@ -30,6 +30,7 @@ import {
 
 import { useTheme } from '@/hooks/theme-context';
 import { useSchedules, Schedule, ScheduleFormData } from '@/hooks/useSchedules';
+import KeyboardAwareScrollView from '@/components/KeyboardAwareScrollView';
 
 export default function ScheduleManagement() {
   const router = useRouter();
@@ -456,11 +457,11 @@ export default function ScheduleManagement() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView 
+          <KeyboardAwareScrollView 
             style={styles.modalContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.modalContentContainer}
+            extraScrollHeight={100}
+            enableOnAndroid={true}
           >
             <View style={styles.formGroup}>
               <Text style={[styles.formLabel, { color: colors.text }]}>Title *</Text>
@@ -589,7 +590,7 @@ export default function ScheduleManagement() {
                 {loading ? 'Saving...' : (editingSchedule ? 'Update Schedule' : 'Add Schedule')}
               </Text>
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </SafeAreaView>
       </Modal>
 

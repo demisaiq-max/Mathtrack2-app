@@ -26,6 +26,7 @@ import {
 import { Question, QuestionType, ExamTemplate, AIQuestionRequest } from '@/types/exam';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/auth-context';
+import KeyboardAwareScrollView from '@/components/KeyboardAwareScrollView';
 
 const GRADES = [5, 6, 7, 8, 9, 10];
 const SUBJECTS = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'History', 'Geography', 'Computer Science', 'Science', 'Social Studies', 'Hindi', 'Sanskrit'];
@@ -1408,9 +1409,13 @@ IMPORTANT: Return only the JSON array, no additional text.`;
       
       {renderStepNavigation()}
       
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollView 
+        style={styles.content} 
+        extraScrollHeight={100}
+        enableOnAndroid={true}
+      >
         {renderCurrentStep()}
-      </ScrollView>
+      </KeyboardAwareScrollView>
       
       {/* Date/Time Picker - Platform specific rendering */}
       {Platform.OS === 'ios' && showDatePicker && currentField && (
