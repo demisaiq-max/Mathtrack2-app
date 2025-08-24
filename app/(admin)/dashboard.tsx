@@ -80,7 +80,7 @@ export default function AdminDashboard() {
   const { colors, isDark } = useTheme();
   const { t } = useLanguage();
   const { uploadLectureNote, saveExamReport, lectureNotes, examReports, pendingSubmissionsCount, submissions } = useAdmin();
-  const { schedules, getTodaySchedules, loadSchedules } = useSchedules();
+  const { schedules, getTodaySchedules, loadSchedules, loading: schedulesLoading, error: schedulesError } = useSchedules();
   const [showImportModal, setShowImportModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [lectureTitle, setLectureTitle] = useState('');
@@ -820,18 +820,45 @@ export default function AdminDashboard() {
         <View style={styles.section}>
           <View style={styles.sectionHeaderWithAction}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Schedules</Text>
-            <TouchableOpacity 
-              style={styles.viewAllButton}
-              onPress={() => {
-                console.log('[AdminDashboard] Navigating to schedule management');
-                router.push('/schedule-management');
-              }}
-            >
-              <Text style={styles.viewAllText}>{t('manageSchedule')}</Text>
-            </TouchableOpacity>
+            <View style={styles.scheduleHeaderActions}>
+              <TouchableOpacity 
+                style={[styles.refreshButton, { backgroundColor: colors.background, borderColor: colors.border }]}
+                onPress={() => {
+                  console.log('[AdminDashboard] Manual refresh schedules');
+                  loadSchedules();
+                }}
+              >
+                <Text style={[styles.refreshButtonText, { color: colors.primary }]}>Refresh</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.viewAllButton}
+                onPress={() => {
+                  console.log('[AdminDashboard] Navigating to schedule management');
+                  router.push('/schedule-management');
+                }}
+              >
+                <Text style={styles.viewAllText}>{t('manageSchedule')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={[styles.scheduleContainer, { backgroundColor: colors.surface }]}>
-            {recentSchedules.length > 0 ? (
+            {schedulesLoading && (
+              <View style={styles.loadingContainer}>
+                <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading schedules...</Text>
+              </View>
+            )}
+            {schedulesError && (
+              <View style={styles.errorContainer}>
+                <Text style={[styles.errorText, { color: colors.error }]}>Error: {schedulesError}</Text>
+                <TouchableOpacity 
+                  style={[styles.retryButton, { backgroundColor: colors.primary }]}
+                  onPress={() => loadSchedules()}
+                >
+                  <Text style={[styles.retryButtonText, { color: colors.primaryText }]}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {!schedulesLoading && !schedulesError && recentSchedules.length > 0 ? (
               recentSchedules.map((item: any) => (
                 <TouchableOpacity 
                   key={item.id} 
@@ -850,7 +877,7 @@ export default function AdminDashboard() {
                   </View>
                 </TouchableOpacity>
               ))
-            ) : (
+            ) : !schedulesLoading && !schedulesError ? (
               <View style={styles.emptyScheduleContainer}>
                 <Text style={[styles.emptyScheduleText, { color: colors.textSecondary }]}>No schedules created yet</Text>
                 <TouchableOpacity 
@@ -860,7 +887,7 @@ export default function AdminDashboard() {
                   <Text style={[styles.addScheduleButtonText, { color: colors.primaryText }]}>Add Schedule</Text>
                 </TouchableOpacity>
               </View>
-            )}
+            ) : null}
           </View>
         </View>
 
@@ -1880,5 +1907,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 4,
+  },
+  scheduleHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  refreshButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  refreshButtonText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  errorContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  retryButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
