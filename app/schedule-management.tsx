@@ -29,7 +29,6 @@ import {
   Settings,
 } from 'lucide-react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
-import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useTheme } from '@/hooks/theme-context';
 import { useSchedules, Schedule, ScheduleFormData } from '@/hooks/useSchedules';
 
@@ -455,24 +454,7 @@ export default function ScheduleManagement() {
               <Pressable
                 style={[styles.formInput, styles.datePickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
                 onPress={() => {
-                  if (Platform.OS === 'android') {
-                    DateTimePickerAndroid.open({
-                      value: formData.date ? new Date(formData.date) : new Date(),
-                      onChange: (event, selectedDate) => {
-                        if (selectedDate) {
-                          const dateString = selectedDate.toISOString().split('T')[0];
-                          setFormData(prev => ({ ...prev, date: dateString }));
-                          console.log('[DatePicker] Date selected:', dateString);
-                        }
-                      },
-                      mode: 'date',
-                      is24Hour: true,
-                      minimumDate: new Date(),
-                      maximumDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-                    });
-                  } else {
-                    setShowDatePicker(true);
-                  }
+                  setShowDatePicker(true);
                 }}
               >
                 <TextInput
@@ -491,23 +473,7 @@ export default function ScheduleManagement() {
                 <Pressable
                   style={[styles.formInput, styles.timePickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   onPress={() => {
-                    if (Platform.OS === 'android') {
-                      const currentTime = formData.start_time ? new Date(`2000-01-01T${formData.start_time}:00`) : new Date();
-                      DateTimePickerAndroid.open({
-                        value: currentTime,
-                        onChange: (event, selectedTime) => {
-                          if (selectedTime) {
-                            const timeString = selectedTime.toTimeString().slice(0, 5);
-                            setFormData(prev => ({ ...prev, start_time: timeString }));
-                            console.log('[TimePicker] Start time selected:', timeString);
-                          }
-                        },
-                        mode: 'time',
-                        is24Hour: true,
-                      });
-                    } else {
-                      setShowStartTimePicker(true);
-                    }
+                    setShowStartTimePicker(true);
                   }}
                 >
                   <TextInput
@@ -524,23 +490,7 @@ export default function ScheduleManagement() {
                 <Pressable
                   style={[styles.formInput, styles.timePickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   onPress={() => {
-                    if (Platform.OS === 'android') {
-                      const currentTime = formData.end_time ? new Date(`2000-01-01T${formData.end_time}:00`) : new Date();
-                      DateTimePickerAndroid.open({
-                        value: currentTime,
-                        onChange: (event, selectedTime) => {
-                          if (selectedTime) {
-                            const timeString = selectedTime.toTimeString().slice(0, 5);
-                            setFormData(prev => ({ ...prev, end_time: timeString }));
-                            console.log('[TimePicker] End time selected:', timeString);
-                          }
-                        },
-                        mode: 'time',
-                        is24Hour: true,
-                      });
-                    } else {
-                      setShowEndTimePicker(true);
-                    }
+                    setShowEndTimePicker(true);
                   }}
                 >
                   <TextInput
@@ -579,82 +529,76 @@ export default function ScheduleManagement() {
         </SafeAreaView>
       </Modal>
 
-      {/* iOS/Web Date Picker - Only show for non-Android platforms */}
-      {Platform.OS !== 'android' && (
-        <DateTimePickerModal
-          isVisible={showDatePicker}
-          mode="date"
-          onConfirm={(selectedDate) => {
-            const dateString = selectedDate.toISOString().split('T')[0];
-            setFormData(prev => ({ ...prev, date: dateString }));
-            setShowDatePicker(false);
-            console.log('[DatePicker] Date selected:', dateString);
-          }}
-          onCancel={() => setShowDatePicker(false)}
-          date={formData.date ? new Date(formData.date) : new Date()}
-          minimumDate={new Date()}
-          maximumDate={new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)}
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          isDarkModeEnabled={isDark}
-          confirmTextIOS="Confirm"
-          cancelTextIOS="Cancel"
-          customHeaderIOS={() => (
-            <View style={[styles.pickerHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-              <Text style={[styles.pickerHeaderText, { color: colors.text }]}>Select Date</Text>
-            </View>
-          )}
-        />
-      )}
+      {/* Cross-Platform Date Picker */}
+      <DateTimePickerModal
+        isVisible={showDatePicker}
+        mode="date"
+        onConfirm={(selectedDate) => {
+          const dateString = selectedDate.toISOString().split('T')[0];
+          setFormData(prev => ({ ...prev, date: dateString }));
+          setShowDatePicker(false);
+          console.log('[DatePicker] Date selected:', dateString);
+        }}
+        onCancel={() => setShowDatePicker(false)}
+        date={formData.date ? new Date(formData.date) : new Date()}
+        minimumDate={new Date()}
+        maximumDate={new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)}
+        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+        isDarkModeEnabled={isDark}
+        confirmTextIOS="Confirm"
+        cancelTextIOS="Cancel"
+        customHeaderIOS={() => (
+          <View style={[styles.pickerHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <Text style={[styles.pickerHeaderText, { color: colors.text }]}>Select Date</Text>
+          </View>
+        )}
+      />
 
-      {/* iOS/Web Start Time Picker - Only show for non-Android platforms */}
-      {Platform.OS !== 'android' && (
-        <DateTimePickerModal
-          isVisible={showStartTimePicker}
-          mode="time"
-          onConfirm={(selectedTime) => {
-            const timeString = selectedTime.toTimeString().slice(0, 5);
-            setFormData(prev => ({ ...prev, start_time: timeString }));
-            setShowStartTimePicker(false);
-            console.log('[TimePicker] Start time selected:', timeString);
-          }}
-          onCancel={() => setShowStartTimePicker(false)}
-          date={formData.start_time ? new Date(`2000-01-01T${formData.start_time}:00`) : new Date()}
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          isDarkModeEnabled={isDark}
-          confirmTextIOS="Confirm"
-          cancelTextIOS="Cancel"
-          customHeaderIOS={() => (
-            <View style={[styles.pickerHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-              <Text style={[styles.pickerHeaderText, { color: colors.text }]}>Select Start Time</Text>
-            </View>
-          )}
-        />
-      )}
+      {/* Cross-Platform Start Time Picker */}
+      <DateTimePickerModal
+        isVisible={showStartTimePicker}
+        mode="time"
+        onConfirm={(selectedTime) => {
+          const timeString = selectedTime.toTimeString().slice(0, 5);
+          setFormData(prev => ({ ...prev, start_time: timeString }));
+          setShowStartTimePicker(false);
+          console.log('[TimePicker] Start time selected:', timeString);
+        }}
+        onCancel={() => setShowStartTimePicker(false)}
+        date={formData.start_time ? new Date(`2000-01-01T${formData.start_time}:00`) : new Date()}
+        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+        isDarkModeEnabled={isDark}
+        confirmTextIOS="Confirm"
+        cancelTextIOS="Cancel"
+        customHeaderIOS={() => (
+          <View style={[styles.pickerHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <Text style={[styles.pickerHeaderText, { color: colors.text }]}>Select Start Time</Text>
+          </View>
+        )}
+      />
 
-      {/* iOS/Web End Time Picker - Only show for non-Android platforms */}
-      {Platform.OS !== 'android' && (
-        <DateTimePickerModal
-          isVisible={showEndTimePicker}
-          mode="time"
-          onConfirm={(selectedTime) => {
-            const timeString = selectedTime.toTimeString().slice(0, 5);
-            setFormData(prev => ({ ...prev, end_time: timeString }));
-            setShowEndTimePicker(false);
-            console.log('[TimePicker] End time selected:', timeString);
-          }}
-          onCancel={() => setShowEndTimePicker(false)}
-          date={formData.end_time ? new Date(`2000-01-01T${formData.end_time}:00`) : new Date()}
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          isDarkModeEnabled={isDark}
-          confirmTextIOS="Confirm"
-          cancelTextIOS="Cancel"
-          customHeaderIOS={() => (
-            <View style={[styles.pickerHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-              <Text style={[styles.pickerHeaderText, { color: colors.text }]}>Select End Time</Text>
-            </View>
-          )}
-        />
-      )}
+      {/* Cross-Platform End Time Picker */}
+      <DateTimePickerModal
+        isVisible={showEndTimePicker}
+        mode="time"
+        onConfirm={(selectedTime) => {
+          const timeString = selectedTime.toTimeString().slice(0, 5);
+          setFormData(prev => ({ ...prev, end_time: timeString }));
+          setShowEndTimePicker(false);
+          console.log('[TimePicker] End time selected:', timeString);
+        }}
+        onCancel={() => setShowEndTimePicker(false)}
+        date={formData.end_time ? new Date(`2000-01-01T${formData.end_time}:00`) : new Date()}
+        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+        isDarkModeEnabled={isDark}
+        confirmTextIOS="Confirm"
+        cancelTextIOS="Cancel"
+        customHeaderIOS={() => (
+          <View style={[styles.pickerHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <Text style={[styles.pickerHeaderText, { color: colors.text }]}>Select End Time</Text>
+          </View>
+        )}
+      />
     </SafeAreaView>
   );
 }
