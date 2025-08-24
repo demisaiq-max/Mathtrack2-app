@@ -43,7 +43,6 @@ export default function ScheduleManagement() {
     updateSchedule,
     deleteSchedule,
     getTodaySchedules,
-    loadSchedules,
   } = useSchedules();
 
   const [showModal, setShowModal] = useState(false);
@@ -167,18 +166,6 @@ export default function ScheduleManagement() {
     console.log('[ScheduleManagement] Schedules updated:', schedules.length);
   }, [schedules.length, refreshKey]);
 
-  // Force refresh on mount and when coming back to this screen
-  useEffect(() => {
-    console.log('[ScheduleManagement] Component mounted, loading schedules');
-    loadSchedules();
-  }, [loadSchedules]);
-
-  const handleManualRefresh = () => {
-    console.log('[ScheduleManagement] Manual refresh triggered');
-    loadSchedules();
-    setRefreshKey(prev => prev + 1);
-  };
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -195,21 +182,13 @@ export default function ScheduleManagement() {
             Manage your exams, classes, and meetings
           </Text>
         </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={[styles.refreshButton, { backgroundColor: colors.background, borderColor: colors.border }]}
-            onPress={handleManualRefresh}
-          >
-            <Text style={[styles.refreshButtonText, { color: colors.primary }]}>Refresh</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: colors.primary }]}
-            onPress={handleAddSchedule}
-          >
-            <Plus size={20} color={colors.primaryText} />
-            <Text style={[styles.addButtonText, { color: colors.primaryText }]}>Add Schedule</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[styles.addButton, { backgroundColor: colors.primary }]}
+          onPress={handleAddSchedule}
+        >
+          <Plus size={20} color={colors.primaryText} />
+          <Text style={[styles.addButtonText, { color: colors.primaryText }]}>Add Schedule</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
@@ -675,21 +654,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  refreshButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  refreshButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
   },
   content: {
     flex: 1,

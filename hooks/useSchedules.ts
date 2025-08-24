@@ -56,31 +56,12 @@ export function useSchedules() {
       
       if (testError) {
         console.error('[useSchedules] Cannot access schedules table:', testError);
-        const errorMsg = typeof testError === 'object' ? JSON.stringify(testError) : String(testError);
-        setError(`Database access error: ${errorMsg}`);
+        setError(`Database access error: ${testError.message}`);
         return;
       }
       
       console.log('[useSchedules] Schedules table accessible, test result:', testData);
       
-      // Try to fetch all schedules first to see if there are any in the database
-      const { data: allSchedules, error: allError } = await supabase
-        .from('schedules')
-        .select('*')
-        .order('date', { ascending: true })
-        .order('start_time', { ascending: true });
-      
-      if (allError) {
-        console.error('[useSchedules] Error loading all schedules:', allError);
-        const errorMsg = typeof allError === 'object' ? JSON.stringify(allError) : String(allError);
-        setError(`Database error: ${errorMsg}`);
-        return;
-      }
-      
-      console.log('[useSchedules] All schedules in database:', allSchedules?.length || 0);
-      console.log('[useSchedules] All schedule data:', JSON.stringify(allSchedules, null, 2));
-      
-      // Now fetch schedules for this admin
       const { data, error } = await supabase
         .from('schedules')
         .select('*')
@@ -89,19 +70,21 @@ export function useSchedules() {
         .order('start_time', { ascending: true });
 
       if (error) {
-        console.error('[useSchedules] Error loading admin schedules:', error);
-        const errorMsg = typeof error === 'object' ? JSON.stringify(error) : String(error);
-        setError(`Database error: ${errorMsg}`);
+        console.error('[useSchedules] Error loading schedules:', error);
+        console.error('[useSchedules] Error code:', error.code);
+        console.error('[useSchedules] Error details:', error.details);
+        console.error('[useSchedules] Error hint:', error.hint);
+        setError(`Database error: ${error.message} (Code: ${error.code})`);
         return;
       }
 
-      console.log('[useSchedules] Loaded admin schedules:', data?.length || 0);
-      console.log('[useSchedules] Admin schedule data:', JSON.stringify(data, null, 2));
+      console.log('[useSchedules] Loaded schedules:', data?.length || 0);
+      console.log('[useSchedules] Schedule data:', JSON.stringify(data, null, 2));
       setSchedules(data || []);
     } catch (err) {
       console.error('[useSchedules] Unexpected error:', err);
-      const errorMessage = err instanceof Error ? err.message : (typeof err === 'object' ? JSON.stringify(err) : String(err));
-      console.error('[useSchedules] Error details:', errorMessage);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load schedules';
+      console.error('[useSchedules] Error details:', JSON.stringify(err, null, 2));
       setError(errorMessage);
     } finally {
       setLoading(false);
