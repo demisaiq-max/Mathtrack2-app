@@ -47,7 +47,7 @@ interface ScheduleItem {
 }
 
 export default function AdminProfile() {
-  const { user, logout, refreshUser } = useAuth();
+  const { user, logout, refreshUser, updateUser } = useAuth();
   const { colors, isDark } = useTheme();
   const { t } = useLanguage();
   const router = useRouter();
@@ -110,6 +110,9 @@ export default function AdminProfile() {
     location: '',
     type: 'class',
   });
+  const [showEditNameModal, setShowEditNameModal] = useState(false);
+  const [editingName, setEditingName] = useState('');
+  const [isUpdatingName, setIsUpdatingName] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -206,6 +209,35 @@ export default function AdminProfile() {
     setEditingSchedule(null);
   };
 
+  const handleUpdateName = async () => {
+    if (!editingName.trim()) {
+      Alert.alert(t('error'), 'Please enter a valid name');
+      return;
+    }
+
+    if (!user) {
+      Alert.alert(t('error'), 'User not found');
+      return;
+    }
+
+    setIsUpdatingName(true);
+    try {
+      const updatedUser = {
+        ...user,
+        fullName: editingName.trim()
+      };
+      
+      await updateUser(updatedUser);
+      Alert.alert(t('success'), 'Name updated successfully!');
+      setShowEditNameModal(false);
+    } catch (error) {
+      console.error('Error updating name:', error);
+      Alert.alert(t('error'), 'Failed to update name. Please try again.');
+    } finally {
+      setIsUpdatingName(false);
+    }
+  };
+
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(':');
     const hour = parseInt(hours);
@@ -290,7 +322,18 @@ export default function AdminProfile() {
               )}
             </View>
             <View style={styles.userInfo}>
-              <Text style={[styles.userName, { color: colors.text }]}>{user?.fullName}</Text>
+              <View style={styles.nameContainer}>
+                <Text style={[styles.userName, { color: colors.text }]}>{user?.fullName}</Text>
+                <TouchableOpacity 
+                  style={[styles.editNameButton, { backgroundColor: isDark ? colors.card : '#F3F4F6' }]}
+                  onPress={() => {
+                    setEditingName(user?.fullName || '');
+                    setShowEditNameModal(true);
+                  }}
+                >
+                  <Edit size={14} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
               <Text style={[styles.userEmail, { color: colors.textSecondary }]}>{user?.email}</Text>
               <View style={[styles.roleBadge, { backgroundColor: isDark ? colors.card : '#EEF2FF' }]}>
                 <Text style={[styles.roleText, { color: colors.primary }]}>{t('administratorRole')}</Text>
@@ -552,6 +595,51 @@ export default function AdminProfile() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Edit Name Modal */}
+      <Modal
+        visible={showEditNameModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowEditNameModal(false)}
+      >
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Name</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowEditNameModal(false)}
+            >
+              <X size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modalContent}>
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: colors.text }]}>Full Name *</Text>
+              <TextInput
+                style={[styles.formInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                value={editingName}
+                onChangeText={setEditingName}
+                placeholder="Enter your full name"
+                placeholderTextColor={colors.textSecondary}
+                autoFocus
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.saveButton, { backgroundColor: colors.primary, opacity: isUpdatingName ? 0.7 : 1 }]} 
+              onPress={handleUpdateName}
+              disabled={isUpdatingName}
+            >
+              <Save size={20} color={colors.primaryText} />
+              <Text style={[styles.saveButtonText, { color: colors.primaryText }]}>
+                {isUpdatingName ? 'Updating...' : 'Update Name'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -598,11 +686,23 @@ const styles = StyleSheet.create({
   userInfo: {
     flex: 1,
   },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  editNameButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
   userName: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#111827',
-    marginBottom: 4,
     flexShrink: 1,
   },
   userEmail: {

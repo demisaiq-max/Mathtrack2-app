@@ -629,7 +629,7 @@ export default function AdminDashboard() {
           </View>
           <View style={styles.adminInfo}>
             <Text style={[styles.adminRole, { color: colors.text }]}>{t('adminRole')}</Text>
-            <Text style={[styles.adminEmail, { color: colors.textSecondary }]}>alijawad12@gmail.com</Text>
+            <Text style={[styles.adminEmail, { color: colors.textSecondary }]}>{user?.email}</Text>
           </View>
         </View>
 
