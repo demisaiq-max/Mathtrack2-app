@@ -53,9 +53,9 @@ export default function ScheduleManagement() {
     end_time: '',
     location: '',
   });
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [showStartTimeModal, setShowStartTimeModal] = useState(false);
+  const [showEndTimeModal, setShowEndTimeModal] = useState(false);
 
   const handleAddSchedule = () => {
     setEditingSchedule(null);
@@ -151,24 +151,46 @@ export default function ScheduleManagement() {
     }
   };
 
-  const generateDateOptions = () => {
-    const options = [];
+  const generateCalendarDays = () => {
     const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
     
-    for (let i = 0; i < 30; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      const value = date.toISOString().split('T')[0];
-      const label = date.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
-      options.push({ value, label });
+    // Get first day of current month
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    
+    // Get first day of the week for the first day of month
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    
+    const days = [];
+    const current = new Date(startDate);
+    
+    // Generate 6 weeks of days
+    for (let week = 0; week < 6; week++) {
+      for (let day = 0; day < 7; day++) {
+        const date = new Date(current);
+        const isCurrentMonth = date.getMonth() === currentMonth;
+        const isToday = date.toDateString() === today.toDateString();
+        const isPast = date < today && !isToday;
+        
+        days.push({
+          date: new Date(date),
+          day: date.getDate(),
+          isCurrentMonth,
+          isToday,
+          isPast,
+          value: date.toISOString().split('T')[0]
+        });
+        
+        current.setDate(current.getDate() + 1);
+      }
     }
     
-    return options;
+    return {
+      days,
+      monthName: firstDay.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    };
   };
 
   const generateTimeOptions = () => {
@@ -476,41 +498,13 @@ export default function ScheduleManagement() {
               <Text style={[styles.formLabel, { color: colors.text }]}>Date *</Text>
               <TouchableOpacity
                 style={[styles.formInput, styles.datePickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                onPress={() => setShowDatePicker(!showDatePicker)}
+                onPress={() => setShowDateModal(true)}
               >
                 <Text style={[styles.datePickerText, { color: formData.date ? colors.text : colors.textSecondary }]}>
-                  {formData.date || 'Select Date'}
+                  {formData.date ? formatDate(formData.date) : 'Select Date'}
                 </Text>
                 <Calendar size={16} color={colors.textSecondary} />
               </TouchableOpacity>
-              {showDatePicker && (
-                <View style={[styles.datePickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <ScrollView style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
-                    {generateDateOptions().map((date) => (
-                      <TouchableOpacity
-                        key={date.value}
-                        style={[
-                          styles.dateOption,
-                          { borderBottomColor: colors.border },
-                          formData.date === date.value && { backgroundColor: isDark ? colors.primary + '20' : '#EEF2FF' }
-                        ]}
-                        onPress={() => {
-                          setFormData(prev => ({ ...prev, date: date.value }));
-                          setShowDatePicker(false);
-                        }}
-                      >
-                        <Text style={[
-                          styles.dateOptionText,
-                          { color: colors.text },
-                          formData.date === date.value && { color: colors.primary, fontWeight: '600' }
-                        ]}>
-                          {date.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
             </View>
 
             <View style={styles.formRow}>
@@ -518,87 +512,25 @@ export default function ScheduleManagement() {
                 <Text style={[styles.formLabel, { color: colors.text }]}>Start Time *</Text>
                 <TouchableOpacity
                   style={[styles.formInput, styles.timePickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                  onPress={() => {
-                    setShowStartTimePicker(!showStartTimePicker);
-                    setShowEndTimePicker(false);
-                  }}
+                  onPress={() => setShowStartTimeModal(true)}
                 >
                   <Text style={[styles.timePickerText, { color: formData.start_time ? colors.text : colors.textSecondary }]}>
                     {formData.start_time ? formatTime(formData.start_time) : 'Start Time'}
                   </Text>
                   <Clock size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
-                {showStartTimePicker && (
-                  <View style={[styles.timePickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
-                      {generateTimeOptions().map((time) => (
-                        <TouchableOpacity
-                          key={time.value}
-                          style={[
-                            styles.timeOption,
-                            { borderBottomColor: colors.border },
-                            formData.start_time === time.value && { backgroundColor: isDark ? colors.primary + '20' : '#EEF2FF' }
-                          ]}
-                          onPress={() => {
-                            setFormData(prev => ({ ...prev, start_time: time.value }));
-                            setShowStartTimePicker(false);
-                          }}
-                        >
-                          <Text style={[
-                            styles.timeOptionText,
-                            { color: colors.text },
-                            formData.start_time === time.value && { color: colors.primary, fontWeight: '600' }
-                          ]}>
-                            {time.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                )}
               </View>
               <View style={styles.formGroupHalf}>
                 <Text style={[styles.formLabel, { color: colors.text }]}>End Time *</Text>
                 <TouchableOpacity
                   style={[styles.formInput, styles.timePickerButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                  onPress={() => {
-                    setShowEndTimePicker(!showEndTimePicker);
-                    setShowStartTimePicker(false);
-                  }}
+                  onPress={() => setShowEndTimeModal(true)}
                 >
                   <Text style={[styles.timePickerText, { color: formData.end_time ? colors.text : colors.textSecondary }]}>
                     {formData.end_time ? formatTime(formData.end_time) : 'End Time'}
                   </Text>
                   <Clock size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
-                {showEndTimePicker && (
-                  <View style={[styles.timePickerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
-                      {generateTimeOptions().map((time) => (
-                        <TouchableOpacity
-                          key={time.value}
-                          style={[
-                            styles.timeOption,
-                            { borderBottomColor: colors.border },
-                            formData.end_time === time.value && { backgroundColor: isDark ? colors.primary + '20' : '#EEF2FF' }
-                          ]}
-                          onPress={() => {
-                            setFormData(prev => ({ ...prev, end_time: time.value }));
-                            setShowEndTimePicker(false);
-                          }}
-                        >
-                          <Text style={[
-                            styles.timeOptionText,
-                            { color: colors.text },
-                            formData.end_time === time.value && { color: colors.primary, fontWeight: '600' }
-                          ]}>
-                            {time.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                )}
               </View>
             </View>
 
@@ -623,6 +555,172 @@ export default function ScheduleManagement() {
                 {loading ? 'Saving...' : (editingSchedule ? 'Update Schedule' : 'Add Schedule')}
               </Text>
             </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Date Picker Modal */}
+      <Modal
+        visible={showDateModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowDateModal(false)}
+      >
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Date</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowDateModal(false)}
+            >
+              <X size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.calendarContainer}>
+            {(() => {
+              const { days, monthName } = generateCalendarDays();
+              return (
+                <>
+                  <Text style={[styles.calendarMonth, { color: colors.text }]}>{monthName}</Text>
+                  
+                  <View style={styles.calendarHeader}>
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                      <Text key={day} style={[styles.calendarHeaderDay, { color: colors.textSecondary }]}>
+                        {day}
+                      </Text>
+                    ))}
+                  </View>
+                  
+                  <View style={styles.calendarGrid}>
+                    {days.map((day, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.calendarDay,
+                          !day.isCurrentMonth && styles.calendarDayInactive,
+                          day.isPast && styles.calendarDayPast,
+                          day.isToday && [styles.calendarDayToday, { borderColor: colors.primary }],
+                          formData.date === day.value && [styles.calendarDaySelected, { backgroundColor: colors.primary }]
+                        ]}
+                        onPress={() => {
+                          if (!day.isPast || day.isToday) {
+                            setFormData(prev => ({ ...prev, date: day.value }));
+                            setShowDateModal(false);
+                          }
+                        }}
+                        disabled={day.isPast && !day.isToday}
+                      >
+                        <Text style={[
+                          styles.calendarDayText,
+                          { color: colors.text },
+                          !day.isCurrentMonth && { color: colors.textSecondary },
+                          day.isPast && !day.isToday && { color: colors.textSecondary, opacity: 0.5 },
+                          day.isToday && { color: colors.primary, fontWeight: 'bold' },
+                          formData.date === day.value && { color: colors.primaryText, fontWeight: 'bold' }
+                        ]}>
+                          {day.day}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              );
+            })()}
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Start Time Picker Modal */}
+      <Modal
+        visible={showStartTimeModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowStartTimeModal(false)}
+      >
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Start Time</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowStartTimeModal(false)}
+            >
+              <X size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.timeModalContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.timeGrid}>
+              {generateTimeOptions().map((time) => (
+                <TouchableOpacity
+                  key={time.value}
+                  style={[
+                    styles.timeModalOption,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    formData.start_time === time.value && [styles.timeModalOptionSelected, { backgroundColor: colors.primary, borderColor: colors.primary }]
+                  ]}
+                  onPress={() => {
+                    setFormData(prev => ({ ...prev, start_time: time.value }));
+                    setShowStartTimeModal(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.timeModalOptionText,
+                    { color: colors.text },
+                    formData.start_time === time.value && { color: colors.primaryText, fontWeight: '600' }
+                  ]}>
+                    {time.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* End Time Picker Modal */}
+      <Modal
+        visible={showEndTimeModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowEndTimeModal(false)}
+      >
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Select End Time</Text>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowEndTimeModal(false)}
+            >
+              <X size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.timeModalContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.timeGrid}>
+              {generateTimeOptions().map((time) => (
+                <TouchableOpacity
+                  key={time.value}
+                  style={[
+                    styles.timeModalOption,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    formData.end_time === time.value && [styles.timeModalOptionSelected, { backgroundColor: colors.primary, borderColor: colors.primary }]
+                  ]}
+                  onPress={() => {
+                    setFormData(prev => ({ ...prev, end_time: time.value }));
+                    setShowEndTimeModal(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.timeModalOptionText,
+                    { color: colors.text },
+                    formData.end_time === time.value && { color: colors.primaryText, fontWeight: '600' }
+                  ]}>
+                    {time.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -939,37 +1037,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     flex: 1,
   },
-  datePickerContainer: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderRadius: 8,
-    marginTop: 4,
-    maxHeight: 200,
-    zIndex: 1000,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  datePickerScroll: {
-    maxHeight: 200,
-  },
-  dateOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  dateOptionText: {
-    fontSize: 14,
-  },
   timePickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -979,35 +1046,81 @@ const styles = StyleSheet.create({
     fontSize: 16,
     flex: 1,
   },
-  timePickerContainer: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
+  calendarContainer: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+  },
+  calendarMonth: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  calendarHeaderDay: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '600',
+    paddingVertical: 8,
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  calendarDay: {
+    width: '14.28%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 8,
-    marginTop: 4,
-    maxHeight: 150,
-    zIndex: 1000,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    marginBottom: 4,
   },
-  timePickerScroll: {
-    maxHeight: 150,
+  calendarDayInactive: {
+    opacity: 0.3,
   },
-  timeOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
+  calendarDayPast: {
+    opacity: 0.5,
   },
-  timeOptionText: {
+  calendarDayToday: {
+    borderWidth: 2,
+  },
+  calendarDaySelected: {
+    backgroundColor: '#4F46E5',
+  },
+  calendarDayText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  timeModalContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+  },
+  timeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    paddingVertical: 20,
+  },
+  timeModalOption: {
+    width: '30%',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  timeModalOptionSelected: {
+    backgroundColor: '#4F46E5',
+    borderColor: '#4F46E5',
+  },
+  timeModalOptionText: {
     fontSize: 14,
+    fontWeight: '500',
   },
 });
